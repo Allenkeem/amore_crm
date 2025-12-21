@@ -1,0 +1,23 @@
+# --- 데이터 처리 (Data Processing) ---
+pandas==2.2.0           # 리뷰 데이터(CSV) 읽기 및 가공
+openpyxl==3.1.2         # 엑셀 파일 처리가 필요할 경우 대비
+tqdm==4.66.1            # 데이터 변환 시 진행률(Progress Bar) 표시
+
+# --- LLM & AI Core ---
+openai==1.12.0          # GPT-4o API 호출
+pydantic==2.6.1         # JSON 데이터 구조 정의 및 검증 (Structured Output 핵심)
+tiktoken==0.6.0         # 토큰 수 계산 (비용 관리용)
+
+# --- LangChain (RAG 프레임워크) ---
+langchain==0.1.9        # 랭체인 메인 프레임워크
+langchain-openai==0.0.8 # 랭체인-OpenAI 연결 커넥터
+langchain-community==0.0.24 # 다양한 서드파티 도구 (Vector DB 등) 연결
+
+# --- Vector DB (RAG 검색 엔진) ---
+chromadb==0.4.22        # 가볍고 강력한 로컬 벡터 데이터베이스 (설치 쉬움)
+
+# --- 환경 설정 및 유틸리티 ---
+python-dotenv==1.0.1    # .env 파일에서 API Key 불러오기
+
+# --- 웹 UI (선택 사항: 데모 시연용) ---
+streamlit==1.31.1       # 파이썬만으로 빠르게 웹 화면 만들기

@@ -1,0 +1,16 @@
+# 1. 보안 파일 (절대 공개 금지)
+.env
+api_key.txt
+
+# 2. 데이터 파일 (용량이 크거나 민감한 정보)
+data/
+*.csv
+*.xlsx
+*.json
+
+# 3. 시스템 파일 (잡동사니)
+__pycache__/
+.DS_Store
+venv/
+.idea/
+.vscode/
