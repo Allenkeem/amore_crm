@@ -1,18 +1,24 @@
-# amore_crm
-Insicon Amorepacific CRM msg GEN Repository
+# 🛒 CRM 마케팅 AI 에이전트 (CRM AI Agent)
 
+고객 리뷰 데이터를 분석하여 **고객 페르소나(성향)**를 파악하고, 그에 딱 맞는 **맞춤형 마케팅 메시지**를 자동으로 작성해주는 AI 프로그램입니다.
+
+## 📂 프로젝트 구조 (File Structure)
+
+이 프로젝트는 복잡한 과정을 줄이고, **[데이터 준비] -> [AI 실행]** 2단계로 단순화되어 있습니다.
+
+```text
 crm-ai-agent/
 │
-├── 📂 data/                  # [창고] 모든 데이터는 여기에 넣습니다.
-│   ├── raw/                  # (1) 다운받은 엑셀/CSV 원본 넣는 곳
-│   └── processed/            # (2) AI용으로 변환된 JSON 파일이 저장되는 곳 (자동생성)
+├── 📂 data/                  # [데이터 창고] 모든 데이터는 여기에 보관합니다.
+│   ├── raw/                  # (1) 원본 엑셀/CSV 파일을 넣는 곳
+│   └── processed/            # (2) AI가 분석 완료한 JSON 파일이 저장되는 곳 (자동생성)
 │
-├── 📂 prompts/               # [대본] AI에게 시킬 명령어 모음
-│   └── marketing_prompt.py   # "너는 10년차 마케터야..." 같은 프롬프트 저장
+├── 📂 prompts/               # [AI 대본] AI에게 시킬 역할과 지시사항이 담긴 폴더
 │
-├── 1_data_maker.py           # [실행1] 엑셀 파일을 읽어서 -> AI용 DB로 만드는 코드
-├── 2_crm_agent.py            # [실행2] 실제 에이전트 실행 코드 (메시지 생성기)
+├── 1_data_maker.py           # [실행 1단계] 엑셀을 읽어서 AI용 데이터(JSON)로 변환하는 코드
+├── 2_crm_agent.py            # [실행 2단계] 변환된 데이터를 보고 마케팅 문자를 써주는 코드
 │
-├── .env                      # [보안] API 키 저장소 (비밀번호!)
-├── .gitignore                # [필수] 깃허브에 올리면 안 되는 파일 목록
-└── requirements.txt          # [설치] 필요한 라이브러리 목록
+├── .env                      # [비밀번호] OpenAI API 키를 저장하는 파일 (절대 공유 금지!)
+├── .gitignore                # 깃허브에 올리지 않을 파일 목록 설정
+├── requirements.txt          # 필요한 프로그램(라이브러리) 설치 목록
+└── README.md                 # 설명서 (현재 파일)
