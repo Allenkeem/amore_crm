@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # 1. 백엔드 서비스
+  backend:
+    build: ./backend
+    container_name: amore-backend
+    ports:
+      - "8000:8000"
+    restart: always
+
+  # 2. 프론트엔드 서비스
+  frontend:
+    build: ./frontend
+    container_name: amore-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      # ⭐ 핵심: 도커 내부에서는 'localhost'가 아니라 서비스 이름('backend')으로 통신합니다.
+      - BACKEND_URL=http://backend:8000/generate
+    depends_on:
+      - backend  # 백엔드가 켜져야 프론트엔드도 켜짐
+    restart: always
