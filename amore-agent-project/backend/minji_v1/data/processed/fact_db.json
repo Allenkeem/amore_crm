@@ -1,0 +1,72 @@
+{
+    "라네즈 크림스킨": {
+        "product_name": "라네즈 크림스킨 세라펩타이드 리파이너",
+        "content_details": {
+            "capacity": "170ml (본품) + 170ml (리필)",
+            "price": "38,000원",
+            "special_bens": "추석 한정 스페셜 기프트 세트, 스마트톡 증정",
+            "features": [
+                "세라펩타이드™ 함유",
+                "120시간 보습 지속",
+                "피부 장벽 강화"
+            ]
+        },
+        "search_context": {
+            "official_summary": "크림 한 통을 스킨에 그대로 녹여낸 고보습 스킨. 세안 후 첫 단계부터 채워주는 확실한 보습 효과."
+        },
+        "metadata": {
+            "badges": [
+                "NEW",
+                "BEST",
+                "Global 1위"
+            ],
+            "launch_date": "2024-09"
+        }
+    },
+    "설화수 윤조에센스": {
+        "product_name": "설화수 윤조에센스 6세대",
+        "content_details": {
+            "capacity": "90ml",
+            "price": "140,000원",
+            "special_bens": "자음 2종 샘플 키트 증정",
+            "features": [
+                "순수 10초 케어",
+                "피부 자생력 강화",
+                "독자적 인삼 기술"
+            ]
+        },
+        "search_context": {
+            "official_summary": "세안 후 가장 먼저 사용하는 퍼스트 에센스. 피부의 건강한 윤기를 깨웁니다."
+        },
+        "metadata": {
+            "badges": [
+                "Steady Seller",
+                "Luxury"
+            ],
+            "launch_date": "2023-03"
+        }
+    },
+    "헤라 블랙쿠션": {
+        "product_name": "헤라 블랙쿠션 파운데이션",
+        "content_details": {
+            "capacity": "15g * 2 (본품+리필)",
+            "price": "66,000원",
+            "special_bens": "전용 파우치 증정",
+            "features": [
+                "24시간 밀착",
+                "세미 매트",
+                "초미세 커버"
+            ]
+        },
+        "search_context": {
+            "official_summary": "무너짐 없는 압도적인 지속력. 마스크 묻어남 최소화 핏."
+        },
+        "metadata": {
+            "badges": [
+                "No.1 Cushion",
+                "Matte"
+            ],
+            "launch_date": "2024-01"
+        }
+    }
+}
