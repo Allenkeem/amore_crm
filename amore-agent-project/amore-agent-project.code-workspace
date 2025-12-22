@@ -1,0 +1,55 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"python.defaultInterpreterPath": "~/miniconda3/envs/amore-agent/bin/python",
+		"terminal.integrated.defaultProfile.osx": "zsh",
+        "python.terminal.activateEnvironment": true
+	},
+	"launch": {
+		"version": "0.2.0",
+		"configurations": [
+			{
+				"name": "Backend (FastAPI)",
+				"type": "python",
+				"request": "launch",
+				"module": "uvicorn",
+				"args": [
+					"backend.main:app",
+					"--reload",
+					"--port", "8000"
+				],
+				"justMyCode": true,
+				"console": "integratedTerminal",
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			},
+			{
+				"name": "Frontend (Streamlit)",
+				"type": "python",
+				"request": "launch",
+				"module": "streamlit",
+				"args": [
+					"run",
+					"frontend/app.py",
+					"--server.port", "8501"
+				],
+				"justMyCode": true,
+				"console": "integratedTerminal",
+				"env": {
+					"PYTHONPATH": "${workspaceFolder}"
+				}
+			}
+		],
+		"compounds": [
+			{
+				"name": "Run ALL (Front + Back)",
+				"configurations": ["Backend (FastAPI)", "Frontend (Streamlit)"]
+			}
+		]
+	}
+}
