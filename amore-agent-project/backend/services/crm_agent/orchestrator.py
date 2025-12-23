@@ -59,16 +59,58 @@ class Orchestrator:
             # Fetch Brand Tone for UI
             brand_tone_info = self.retriever.loader.get_brand_tone(top_product.brand) if hasattr(self.retriever, 'loader') else get_data_loader().get_brand_tone(top_product.brand)
             
-            # Generate
+            # Initial Generation
             msg = self.generator.generate_response(
                 product_cand=top_product,
                 persona_name=target_persona,
                 action_purpose=target_purpose,
                 channel="문자(LMS)" # Default
             )
-            results["final_message"] = msg
+            
+            # -----------------------------------------------------------------
+            # FEEDBACK LOOP (Regulation Check)
+            # -----------------------------------------------------------------
+            audit_trail = []
+            final_msg = msg
+            
+            # Import Regulation Agent lazily to avoid circular imports if any
+            from services.regulation_agent.compliance import get_compliance_agent
+            reg_agent = get_compliance_agent()
+            
+            max_retries = 3
+            chk_result = None
+            
+            for attempt in range(max_retries + 1): # 0 to 3
+                # Check Compliance
+                chk_result = reg_agent.check_compliance(final_msg)
+                
+                # Record Audit
+                audit_entry = {
+                    "attempt": attempt + 1,
+                    "message": final_msg,
+                    "status": chk_result["status"],
+                    "feedback": chk_result["feedback"]
+                }
+                audit_trail.append(audit_entry)
+                
+                if chk_result["status"] == "PASS":
+                    break
+                
+                # If FAIL, refine (unless it's the last attempt)
+                if attempt < max_retries:
+                    print(f"[Orchestrator] Attempt {attempt+1} Failed. Refining...")
+                    final_msg = self.generator.refine_response(
+                        original_msg=final_msg,
+                        feedback=chk_result["feedback"],
+                        feedback_detail=f"Please fix the violations: {chk_result['feedback']}"
+                    )
+            
+            results["final_message"] = final_msg
+            results["audit_trail"] = audit_trail  # Expose to UI
+            
         else:
             results["final_message"] = "죄송합니다. 검색된 상품이 없습니다. 상품명을 더 정확히 말씀해주시겠어요?"
+            results["audit_trail"] = []
             
         results["candidates"]["detected_brand"] = brand_tone_info.get("brand_name", top_product.brand if product_cands else "Unknown")
         results["candidates"]["brand_tone"] = brand_tone_info.get("tone_voice", "Default")

@@ -32,6 +32,30 @@ class Generator:
         print("[Model-2] Sending request to OpenAI (gpt-4o-mini)...")
         return self.client.generate(prompt=full_prompt)
 
+    def refine_response(self, original_msg: str, feedback: str, feedback_detail: str) -> str:
+        """
+        Refine the message based on compliance feedback.
+        """
+        print(f"[Model-2] Refining response due to compliance violation...")
+        
+        prompt = f"""
+        다음 광고 메시지는 아래 규정을 위반했다.
+
+        [VIOLATION]
+        {feedback}
+
+        [FIX INSTRUCTION]
+        - {feedback_detail}
+        - 기존 문맥과 톤은 유지하되 규칙만 수정하라.
+        - 새로운 주장이나 표현을 추가하지 마라.
+        - 메시지 맨 앞에 '(광고)'가 없다면 반드시 추가하라.
+
+        [ORIGINAL MESSAGE]
+        {original_msg}
+        """
+        return self.client.generate(prompt=prompt)
+        return self.client.generate(prompt=prompt)
+
 # Singleton
 _gen_instance = None
 def get_generator():

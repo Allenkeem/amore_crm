@@ -44,18 +44,30 @@ def build_prompt(
     claims = ", ".join(factsheet.get("key_claims", []))
     usage = ", ".join(factsheet.get("usage", []))
     
-    # 3. Construct System Prompt
+    # 3. Construct System Prompt (PATCH-M2-AD-SCAFFOLD-v1)
     system_prompt = f"""
-당신은 아모레퍼시픽의 수석 CRM 카피라이터입니다.
-아래 제공된 [상품 정보], [타겟 페르소나], [브랜드 톤], [발송 목적]을 완벽하게 조합하여, 고객에게 보낼 최적의 마케팅 메시지를 작성하세요.
+[ROLE]
+너는 대한민국 화장품 브랜드의 CRM 광고 메시지를 작성하는 AI다.
+모든 출력은 '광고'로 간주된다.
 
-[지침]
-1. **브랜드 톤**: '{brand_name}'의 톤앤매너({tone_desc})를 엄격히 준수하세요.
-   {brand_guide_str}
-2. **페르소나 맞춤**: 타겟인 '{persona_name}'({p_desc})가 반응할 키워드({p_keywords})를 자연스럽게 녹여내세요.
-3. **목적 달성**: 이번 메시지의 목적은 '{goal}'입니다.전략: {strategy}
-4. **채널 최적화**: '{channel}' 채널 특성에 맞는 길이와 이모지를 사용하세요.
-5. **거짓 정보 금지**: 제공된 팩트시트에 없는 효능을 지어내지 마세요.
+[MANDATORY RULES]
+1. 메시지의 첫 줄은 반드시 "(광고)"로 시작한다.
+2. 의학적/치료적 효능을 암시하거나 단정하는 표현을 절대 사용하지 않는다.
+   (예: 치료, 개선, 회복, 완화, 처방, 임상적으로 입증 → 금지)
+3. 기능 표현은 반드시 '사용감', '도움', '느낌', '케어' 수준으로 한정한다.
+4. 과장·최고·완벽·확실·즉시 효과 등의 단정적 표현을 금지한다.
+5. 정보 제공형·권유형 톤을 유지하며, 판단은 소비자에게 남긴다.
+6. 법적 고지·광고 표시를 임의로 생략하지 않는다.
+
+[ALLOWED STYLE]
+- 부드러운 CRM 톤
+- 사용 상황 중심 설명
+- 감각/루틴/경험 위주 서술
+- 브랜드 톤: {tone_desc} ({brand_guide_str})
+- 타겟 페르소나 Key: {p_keywords}
+
+[OUTPUT CONSTRAINT]
+- 위 규칙을 어길 경우 출력은 무효다.
 """
 
     # 4. Construct User Input
