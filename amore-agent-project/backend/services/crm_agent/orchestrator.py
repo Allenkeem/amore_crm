@@ -11,23 +11,16 @@ class Orchestrator:
         self.generator = get_generator()
         self.parser = get_intent_parser()
         
-    def process_query(self, user_text: str) -> Dict[str, Any]:
+    def process_query_stream(self, user_text: str):
         """
-        Full Pipeline:
-        1. Context Extraction (Intent Parser)
-        2. Product Retrieval (Model-1)
-        3. Message Generation (Model-2)
+        Streaming Pipeline (Generator)
+        Yields dicts: {"type": "status"|"data", ...}
         """
-        results = {
-            "query": user_text,
-            "parsed": None,
-            "candidates": {},
-            "final_message": None
-        }
         
         # 1. Parse Intent
+        yield {"type": "status", "msg": "고객님의 의도를 분석하고 있어요... 🧐"}
         parsed = self.parser.parse_query(user_text)
-        results["parsed"] = parsed
+        yield {"type": "data", "key": "parsed", "value": parsed}
         
         extracted = parsed["extracted"]
         product_query = extracted.get("product")
@@ -35,6 +28,8 @@ class Orchestrator:
         target_purpose = parsed["candidates"]["purpose"][0] if parsed["candidates"]["purpose"] else "Unknown"
         
         # 2. Retrieve Products (Model-1)
+        yield {"type": "status", "msg": "적합한 상품과 혜택을 찾고 있어요... 📦"}
+        
         # Use extracted product query or fallback to full text
         search_q = product_query if product_query else user_text
         product_cands = self.retriever.retrieve(search_q)
@@ -48,16 +43,29 @@ class Orchestrator:
                 "score": p.score,
                 "claims": p.factsheet.voice_info.key_claims
             })
-        results["candidates"]["products"] = serialized_products
-        results["candidates"]["personas"] = parsed["candidates"]["persona"]
-        results["candidates"]["purposes"] = parsed["candidates"]["purpose"]
+            
+        # Send candidates data immediately
+        candidates_data = {
+            "products": serialized_products,
+            "personas": parsed["candidates"]["persona"],
+            "purposes": parsed["candidates"]["purpose"],
+            "detected_brand": "Unknown", # Will update
+            "brand_tone": "Default"      # Will update
+        }
         
         # 3. Generate Message (Model-2)
+        yield {"type": "status", "msg": "매력적인 메시지를 작성하고 있어요... ✍️"}
+        
         brand_tone_info = {}
         if product_cands:
             top_product = product_cands[0]
-            # Fetch Brand Tone for UI
+            # Fetch Brand Tone
             brand_tone_info = self.retriever.loader.get_brand_tone(top_product.brand) if hasattr(self.retriever, 'loader') else get_data_loader().get_brand_tone(top_product.brand)
+            
+            # Update candidates with brand info and send
+            candidates_data["detected_brand"] = brand_tone_info.get("brand_name", top_product.brand)
+            candidates_data["brand_tone"] = brand_tone_info.get("tone_voice", "Default")
+            yield {"type": "data", "key": "candidates", "value": candidates_data}
             
             # Initial Generation
             msg = self.generator.generate_response(
@@ -70,10 +78,12 @@ class Orchestrator:
             # -----------------------------------------------------------------
             # FEEDBACK LOOP (Regulation Check)
             # -----------------------------------------------------------------
+            yield {"type": "status", "msg": "규제 위반 여부를 꼼꼼히 점검 중이에요... 👮"}
+            
             audit_trail = []
             final_msg = msg
             
-            # Import Regulation Agent lazily to avoid circular imports if any
+            # Import Regulation Agent lazily
             from services.regulation_agent.compliance import get_compliance_agent
             reg_agent = get_compliance_agent()
             
@@ -98,6 +108,8 @@ class Orchestrator:
                 
                 # If FAIL, refine (unless it's the last attempt)
                 if attempt < max_retries:
+                    yield {"type": "status", "msg": f"규제 위반 발견! 수정 중입니다... ({attempt+1}/{max_retries}) 🔧"}
+                    
                     print(f"[Orchestrator] Attempt {attempt+1} Failed. Refining...")
                     final_msg = self.generator.refine_response(
                         original_msg=final_msg,
@@ -105,17 +117,19 @@ class Orchestrator:
                         feedback_detail=f"Please fix the violations: {chk_result['feedback']}"
                     )
             
-            results["final_message"] = final_msg
-            results["audit_trail"] = audit_trail  # Expose to UI
+            # Final Result
+            yield {"type": "data", "key": "final_message", "value": final_msg}
+            yield {"type": "data", "key": "audit_trail", "value": audit_trail}
             
         else:
-            results["final_message"] = "죄송합니다. 검색된 상품이 없습니다. 상품명을 더 정확히 말씀해주시겠어요?"
-            results["audit_trail"] = []
+            # No products found
+            candidates_data["detected_brand"] = "Unknown"
+            candidates_data["brand_tone"] = "Default"
+            yield {"type": "data", "key": "candidates", "value": candidates_data}
+            yield {"type": "data", "key": "final_message", "value": "죄송합니다. 검색된 상품이 없습니다. 상품명을 더 정확히 말씀해주시겠어요?"}
+            yield {"type": "data", "key": "audit_trail", "value": []}
             
-        results["candidates"]["detected_brand"] = brand_tone_info.get("brand_name", top_product.brand if product_cands else "Unknown")
-        results["candidates"]["brand_tone"] = brand_tone_info.get("tone_voice", "Default")
-            
-        return results
+        yield {"type": "status", "msg": "완료되었습니다! ✨"}
 
 _orch_instance = None
 def get_orchestrator():
