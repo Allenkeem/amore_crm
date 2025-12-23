@@ -11,7 +11,7 @@ class Orchestrator:
         self.generator = get_generator()
         self.parser = get_intent_parser()
         
-    def process_query_stream(self, user_text: str):
+    def process_query_stream(self, user_text: str, history: List[Dict[str, str]] = []):
         """
         Streaming Pipeline (Generator)
         Yields dicts: {"type": "status"|"data", ...}
@@ -72,7 +72,8 @@ class Orchestrator:
                 product_cand=top_product,
                 persona_name=target_persona,
                 action_purpose=target_purpose,
-                channel="문자(LMS)" # Default
+                channel="문자(LMS)", # Default
+                history=history # Pass History
             )
             
             # -----------------------------------------------------------------
@@ -134,13 +135,25 @@ class Orchestrator:
             print(f"[Orchestrator] Yielding suggestions: {suggestions}")
             yield {"type": "data", "key": "suggestions", "value": suggestions}
             
+            yield {"type": "data", "key": "suggestions", "value": suggestions}
+            
         else:
-            # No products found
-            candidates_data["detected_brand"] = "Unknown"
-            candidates_data["brand_tone"] = "Default"
+            # 2-B. Fallback: General Conversation Mode
+            # Instead of "Sorry", generate a natural response
+            yield {"type": "status", "msg": "💬 답변을 생각하고 있어요..."}
+            
+            candidates_data["detected_brand"] = None
+            candidates_data["brand_tone"] = None
             yield {"type": "data", "key": "candidates", "value": candidates_data}
-            yield {"type": "data", "key": "final_message", "value": "죄송합니다. 검색된 상품이 없습니다. 상품명을 더 정확히 말씀해주시겠어요?"}
+            
+            # Generate General Response
+            gen_response = self.generator.generate_general_chat(user_text)
+            
+            yield {"type": "data", "key": "final_message", "value": gen_response}
             yield {"type": "data", "key": "audit_trail", "value": []}
+            
+            # Fallback suggestions for general chat
+            yield {"type": "data", "key": "suggestions", "value": ["설화수 신제품 보여줘", "마케팅 문구 추천해줘", "라네즈 이벤트 알려줘"]}
             
         yield {"type": "status", "msg": "완료되었습니다! ✨"}
 
