@@ -1,67 +1,101 @@
 import streamlit as st
 import requests
+import json
 
-# 백엔드 주소 (로컬 테스트 시 localhost, 도커 사용 시 서비스명)
-# 도커 컴포즈 사용 시 'http://backend:8000'으로 변경해야 함
-BACKEND_URL = "http://localhost:8000/generate" 
+# Configuration
+BACKEND_URL = "http://localhost:8000/chat"
 
-st.set_page_config(page_title="Amore Mall Marketing Agent", layout="wide")
+st.set_page_config(page_title="Amore AI Agent (Chat)", layout="wide")
 
-st.title("💄 아모레몰 마케팅 메시지 생성 에이전트")
-st.markdown("---")
+st.title("🤖 AmorePacific AI Agent (Chat Mode)")
+st.markdown("자연어로 요청하면 제품 검색부터 메시지 생성까지 한 번에 처리합니다.")
 
-# 화면을 좌우 2개 컬럼으로 분할 (입력창 / 결과창)
-col1, col2 = st.columns([1, 1])
+# Initialize session state for chat history
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+
+if "last_analysis" not in st.session_state:
+    st.session_state.last_analysis = None
+
+# Layout: Left for Chat, Right for Dashboard
+col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.header("1. 설정 입력")
+    st.subheader("대화창")
     
-    # 요구사항: 5~10개의 페르소나 정의
-    persona_options = [
-        "20대 사회초년생 (가성비 중시)",
-        "30대 직장인 (피부 관리/안티에이징 관심)",
-        "40대 주부 (가족용 제품 구매)",
-        "트렌드 민감형 코덕 (신상 위주)",
-        "럭셔리 선호 VIP (고가 라인)",
-        "비건/클린뷰티 선호 고객"
-    ]
-    selected_persona = st.selectbox("고객 페르소나 선택", persona_options)
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        with st.chat_message(message["role"]):
+            st.markdown(message["content"])
 
-    # 브랜드 톤 & 목적 설정
-    tone = st.radio("메시지 톤(Tone)", ["친근하고 감성적인", "전문적이고 신뢰가는", "활기차고 재치있는"], horizontal=True)
-    purpose = st.text_input("메시지 발송 목적", placeholder="예: 설날 선물세트 프로모션, 신상 립스틱 출시 알림")
+    # React to user input
+    if prompt := st.chat_input("예: 실용적인 30대 맘한테 라네즈 크림스킨 재구매하라고 문자 보내줘"):
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
 
-    generate_btn = st.button("메시지 생성하기", type="primary")
+        # Call Backend
+        with st.spinner("AI가 분석 및 메시지 생성 중입니다..."):
+            try:
+                response = requests.post(BACKEND_URL, json={"message": prompt})
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    final_msg = data.get("final_message", "응답 없음")
+                    
+                    # Construct display message (similar to previous Gradio logic or just the message)
+                    # The user's prompt implied they liked the "Analysis Result" block in the chat.
+                    # Let's reproduce a simplified version or just show the final message + dashboard.
+                    # For a clean chat, I'll show the final generated message here.
+                    
+                    bot_response = final_msg
+                    
+                    # Display assistant response in chat message container
+                    with st.chat_message("assistant"):
+                        st.markdown(bot_response)
+                    
+                    # Add assistant response to chat history
+                    st.session_state.messages.append({"role": "assistant", "content": bot_response})
+                    
+                    # Save analysis for dashboard
+                    st.session_state.last_analysis = data
+                    
+                else:
+                    st.error(f"Error {response.status_code}: {response.text}")
+            except Exception as e:
+                st.error(f"Connection Failed: {e}")
 
 with col2:
-    st.header("2. 생성 결과")
+    st.subheader("📊 분석 대시보드")
     
-    if generate_btn:
-        if not purpose:
-            st.warning("메시지 발송 목적을 입력해주세요.")
-        else:
-            with st.spinner("AI가 고객 맞춤 메시지를 작성 중입니다..."):
-                try:
-                    # 백엔드로 데이터 전송
-                    payload = {
-                        "persona": selected_persona,
-                        "tone": tone,
-                        "purpose": purpose
-                    }
-                    response = requests.post(BACKEND_URL, json=payload)
-                    
-                    if response.status_code == 200:
-                        result = response.json()
-                        
-                        # 결과 보여주기 (카드 형태)
-                        st.success("생성 완료!")
-                        st.subheader("📌 제목 (40자 이내)")
-                        st.info(result['title'])
-                        
-                        st.subheader("📝 본문 (350자 이내)")
-                        st.text_area("메시지 내용", value=result['content'], height=200)
-                    else:
-                        st.error("서버 통신 오류가 발생했습니다.")
-                except Exception as e:
-                    st.error(f"연결 실패: {e}")
-                    st.caption("백엔드 서버가 켜져 있는지 확인해주세요.")
+    if st.session_state.last_analysis:
+        data = st.session_state.last_analysis
+        candidates = data.get("candidates", {})
+        parsed = data.get("parsed", {})
+        
+        # Extract meaningful info
+        products = candidates.get("products", [])
+        top_product = products[0].get("name", "None") if products else "없음"
+        
+        personas = candidates.get("personas", [])
+        top_persona = personas[0] if personas else "없음"
+        
+        purposes = candidates.get("purposes", [])
+        top_purpose = purposes[0] if purposes else "없음"
+        
+        extracted_persona = parsed.get("extracted", {}).get("persona", "None")
+        detected_brand = candidates.get("detected_brand", "Unknown")
+        brand_tone = candidates.get("brand_tone", "Unknown")
+        
+        # Display Cards
+        st.info(f"**📦 제품**: {top_product}")
+        st.success(f"**🎯 페르소나**: {top_persona}")
+        st.warning(f"**🎨 브랜드/톤**: {detected_brand} / {brand_tone}")
+        st.error(f"**🔄 목적**: {top_purpose}")
+        
+        with st.expander("🔍 상세 분석 데이터 (JSON)"):
+            st.json(data)
+    else:
+        st.info("대화를 시작하면 분석 결과가 여기에 표시됩니다.")

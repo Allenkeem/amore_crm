@@ -1,19 +1,68 @@
-from fastapi import FastAPI
+import sys
+import os
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
+from typing import Dict, Any, List, Optional
+import uvicorn
 
-app = FastAPI()
+# -------------------------------------------------------------------------
+# Path Setup
+# -------------------------------------------------------------------------
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
 
-# 프론트에서 보낼 데이터 형식 정의
-class GenerationRequest(BaseModel):
-    persona: str
-    tone: str
-    purpose: str
+from services.crm_agent.orchestrator import get_orchestrator
 
-@app.post("/generate")
-def generate_message(request: GenerationRequest):
-    # 실제 모델이 들어오기 전까지는 임시 응답을 반환
-    # 나중에 팀원이 이 부분을 실제 RAG/LLM 코드로 교체하면 됩니다.
-    return {
-        "title": f"[광고] {request.persona}님을 위한 맞춤 혜택!",
-        "content": f"{request.tone} 톤으로 작성된 메시지입니다. {request.purpose}를 위해 아모레몰에서 준비했습니다. (이곳에 생성된 350자 이내의 본문이 들어갑니다.)"
-    }
+# -------------------------------------------------------------------------
+# Initialize
+# -------------------------------------------------------------------------
+print("Initializing Orchestrator...")
+orch = get_orchestrator()
+
+app = FastAPI(title="Amore Agent API")
+
+# -------------------------------------------------------------------------
+# Models
+# -------------------------------------------------------------------------
+class ChatRequest(BaseModel):
+    message: str
+
+class ChatResponse(BaseModel):
+    final_message: str
+    candidates: Dict[str, Any]
+    parsed: Dict[str, Any] = {}
+
+# -------------------------------------------------------------------------
+# API Endpoints
+# -------------------------------------------------------------------------
+@app.post("/chat", response_model=ChatResponse)
+async def chat_endpoint(request: ChatRequest):
+    if not request.message:
+        raise HTTPException(status_code=400, detail="Message cannot be empty")
+    
+    try:
+        # 1. Orchestrator Process
+        results = orch.process_query(request.message)
+        
+        # 2. Extract Response
+        final_msg = results.get("final_message", "Error generation message.")
+        candidates = results.get("candidates", {})
+        parsed = results.get("parsed", {})
+        
+        return ChatResponse(
+            final_message=final_msg,
+            candidates=candidates,
+            parsed=parsed
+        )
+            
+    except Exception as e:
+        print(f"Error processing request: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    # Run the server
+    uvicorn.run(app, host="0.0.0.0", port=8000)
