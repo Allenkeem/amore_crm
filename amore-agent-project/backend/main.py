@@ -28,6 +28,7 @@ app = FastAPI(title="Amore Agent API")
 # -------------------------------------------------------------------------
 class ChatRequest(BaseModel):
     message: str
+    history: Optional[List[Dict[str, str]]] = []
 
 class ChatResponse(BaseModel):
     final_message: str
@@ -47,7 +48,7 @@ async def chat_endpoint(request: ChatRequest):
             # Iterate over the generator from orchestrator
             # Note: process_query_stream is a synchronous generator, so we iterate normally.
             # If it were async, we'd use async for.
-            for event in orch.process_query_stream(request.message):
+            for event in orch.process_query_stream(request.message, request.history):
                 # Format as SSE (Server-Sent Events)
                 # data: <json>\n\n
                 json_data = json.dumps(event, ensure_ascii=False)

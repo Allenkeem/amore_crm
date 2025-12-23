@@ -386,31 +386,33 @@ with col_right:
             """, unsafe_allow_html=True)
             
             # Cards - Align width with Message Bubble (85%)
-            layout_c, _ = st.columns([0.85, 0.15])
-            with layout_c:
-                # 1. Persona Card
-                st.markdown(f"""
-                <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
-                    <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">🎯 타겟 페르소나</div>
-                    <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{top_persona}</div>
-                    <div style="font-size:0.8rem; color:#000000; margin-top:2px;">{top_purpose}</div>
-                </div>""", unsafe_allow_html=True)
+            # Only show cards if we have valid analysis data (not None)
+            if detected_brand and brand_tone:
+                layout_c, _ = st.columns([0.85, 0.15])
+                with layout_c:
+                    # 1. Persona Card
+                    st.markdown(f"""
+                    <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
+                        <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">🎯 타겟 페르소나</div>
+                        <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{top_persona}</div>
+                        <div style="font-size:0.8rem; color:#000000; margin-top:2px;">{top_purpose}</div>
+                    </div>""", unsafe_allow_html=True)
 
-                # 2. Product Card
-                st.markdown(f"""
-                <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
-                    <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">📦 추천 상품</div>
-                    <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{top_product.get('name', 'None')}</div>
-                    <div style="font-size:0.8rem; color:#000000; margin-top:2px;">{top_product.get('brand','')}</div>
-                </div>""", unsafe_allow_html=True)
-                
-                # 3. Tone Card
-                st.markdown(f"""
-                <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
-                    <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">🎨 브랜드 톤</div>
-                    <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{detected_brand}</div>
-                    <div style="font-size:0.8rem; color:#000000;">{brand_tone}</div>
-                </div>""", unsafe_allow_html=True)
+                    # 2. Product Card
+                    st.markdown(f"""
+                    <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
+                        <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">📦 추천 상품</div>
+                        <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{top_product.get('name', 'None')}</div>
+                        <div style="font-size:0.8rem; color:#000000; margin-top:2px;">{top_product.get('brand','')}</div>
+                    </div>""", unsafe_allow_html=True)
+                    
+                    # 3. Tone Card
+                    st.markdown(f"""
+                    <div style="background:#fff; border:none; border-radius:16px; padding:12px 20px; margin-bottom:8px; box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05);">
+                        <div style="color:#000000; font-size:0.75rem; margin-bottom:2px; opacity:0.6;">🎨 브랜드 톤</div>
+                        <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{detected_brand}</div>
+                        <div style="font-size:0.8rem; color:#000000;">{brand_tone}</div>
+                    </div>""", unsafe_allow_html=True)
                 
             st.markdown("<div style='margin-bottom: 3rem;'></div>", unsafe_allow_html=True)
 
@@ -509,8 +511,19 @@ with col_right:
                 if tone != "기본":
                         full_prompt += f" (톤: {tone})"
                 
+                # Prepare Chat History (Last 2 Turns)
+                chat_history = []
+                if "chat_history" in st.session_state and len(st.session_state.chat_history) > 0:
+                    # Get last 2 interactions
+                    recent_turns = st.session_state.chat_history[-2:]
+                    for item in recent_turns:
+                        chat_history.append({"role": "user", "content": item["prompt"]})
+                        if item.get("response_data"):
+                            chat_history.append({"role": "assistant", "content": item["response_data"].get("final_message", "")})
+                
                 # Request with stream=True
-                with requests.post(BACKEND_URL, json={"message": full_prompt}, stream=True) as response:
+                payload = {"message": full_prompt, "history": chat_history}
+                with requests.post(BACKEND_URL, json=payload, stream=True) as response:
                     if response.status_code == 200:
                         
                         # Temp storage for final history

@@ -11,7 +11,8 @@ class Generator:
                           product_cand: Any, # ProductCandidate object from Model-1
                           persona_name: str,
                           action_purpose: str,
-                          channel: str = "문자(LMS)") -> str:
+                          channel: str = "문자(LMS)",
+                          history: list = []) -> str:
         
         # 1. Extract Factsheet from Candidate
         factsheet = product_cand.factsheet.dict()
@@ -27,6 +28,16 @@ class Generator:
             action_purpose=action_purpose,
             channel=channel
         )
+
+        # 2-B. Attach History (if any)
+        if history:
+            history_text = "\n[Previous Context]\n"
+            for turn in history:
+                role = turn.get("role", "user")
+                content = turn.get("content", "")
+                history_text += f"{role.upper()}: {content}\n"
+            
+            full_prompt = history_text + "\n" + full_prompt
         
         # 3. Generate (via OpenAI)
         print("[Model-2] Sending request to OpenAI (gpt-4o-mini)...")
@@ -95,6 +106,29 @@ class Generator:
             return ["더 짧게 줄여줘", "톤을 부드럽게", "혜택 강조해줘"] # Fallback
         except:
             return ["더 짧게 줄여줘", "톤을 부드럽게", "혜택 강조해줘"] # Fallback
+
+    def generate_general_chat(self, user_query: str) -> str:
+        """
+        Handle general conversation when no product is retrieved.
+        """
+        print(f"[Model-2] Generating general chat response...")
+        prompt = f"""
+        [Role]
+        You are 'Amore Agent', a helpful CRM Marketing Assistant for Amorepacific.
+        
+        [Task]
+        The user said: "{user_query}"
+        No specific products were found in your database.
+        Respond naturally and helpfully to the user.
+        
+        [Guidelines]
+        1. If it's a greeting ("안녕", "Hi"), welcome them warmly.
+        2. If it's a general question ("CRM이 뭐야?", "마케팅 꿀팁 알려줘"), answer briefly.
+        3. ALWAYS end by gently asking if they are looking for a specific product to create a message for.
+        4. Tone: Professional, polite, yet friendly (Korean).
+        5. Keep it under 3 sentences.
+        """
+        return self.client.generate(prompt=prompt)
 
 # Singleton
 _gen_instance = None
