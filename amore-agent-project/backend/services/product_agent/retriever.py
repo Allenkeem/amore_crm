@@ -5,7 +5,12 @@ from typing import List, Dict, Any, Tuple
 from collections import defaultdict, Counter
 import logging
 
-from .config import PRODUCT_CARDS_PATH, WEIGHTS, RETRIEVAL_TOP_K, CANDIDATE_POOL_SIZE
+from .config import WEIGHTS, RETRIEVAL_TOP_K, CANDIDATE_POOL_SIZE
+# Path moved:
+import os
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+BACKEND_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
+PRODUCT_CARDS_PATH = os.path.join(BACKEND_ROOT, "data", "product_agent", "product_cards.jsonl")
 from .normalize import normalize_brand, normalize_query, extract_attributes
 from .schemas import ProductCandidate, MatchDetails, Evidence, EvidenceHighlight
 from .factsheet import build_factsheet
