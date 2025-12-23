@@ -21,6 +21,12 @@ class IntentParser:
             a_id = action.get("id", "UNKNOWN")
             desc = action.get("matching_description", action.get("name", ""))
             candidates_text += f"- [{a_id}]: {desc}\n"
+
+        # 1-2. Prepare Persona Candidates
+        persona_text = ""
+        for name, p_data in self.loader.personas.items():
+            desc = p_data.get("desc", "")
+            persona_text += f"- [{name}]: {desc}\n"
             
         # 2. Build Prompt for Classification
         prompt = f"""
@@ -32,6 +38,9 @@ If the request implies a specific season (spring/summer/autumn/winter), ensure y
 [ACTION ID LIST]
 {candidates_text}
 
+[PERSONA LIST]
+{persona_text}
+
 [USER REQUEST]
 "{user_text}"
 
@@ -39,6 +48,9 @@ If the request implies a specific season (spring/summer/autumn/winter), ensure y
 Return ONLY a JSON object in this format:
 {{
     "selected_id": "ONE_OF_THE_IDS" or "NONE",
+    "target_persona_name": "EXACT_PERSONA_NAME_FROM_LIST" or "일반 고객",
+    "target_product": "Extracted product name/brand from query (e.g., 설화수) or null",
+    "target_purpose": "Extracted specific purpose (e.g., 구매기록이 없는 사람에게 추천) or null",
     "reason": "Short explanation why"
 }}
 """
@@ -61,6 +73,9 @@ Return ONLY a JSON object in this format:
             return {
                 "original_query": user_text,
                 "selected_id": selected_id, # Can be "NONE"
+                "target_persona": parsed.get("target_persona_name"),
+                "target_product": parsed.get("target_product"),
+                "target_purpose": parsed.get("target_purpose"),
                 "reason": parsed.get("reason", "")
             }
 

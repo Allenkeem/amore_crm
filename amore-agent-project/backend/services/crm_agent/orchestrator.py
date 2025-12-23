@@ -42,7 +42,13 @@ class Orchestrator:
         # For now, let's assume query is the product search
         
         # 2. Retrieve Products (Model-1)
-        search_q = user_text # Simplified for now
+        # Use extracted product name if available, otherwise use full query
+        target_product = parsed.get("target_product")
+        if target_product and target_product.lower() != "null":
+            search_q = target_product
+        else:
+            search_q = user_text 
+
         product_cands = self.retriever.retrieve(search_q)
         
         # ... (serialization code) ...
@@ -54,12 +60,17 @@ class Orchestrator:
             # Fetch Brand Tone for UI
             brand_tone_info = self.retriever.loader.get_brand_tone(top_product.brand) if hasattr(self.retriever, 'loader') else get_data_loader().get_brand_tone(top_product.brand)
             
+            # Determine Persona
+            target_persona = parsed.get("target_persona")
+            if not target_persona or target_persona.lower() == "null":
+                target_persona = "일반 고객"
+
             # Initial Generation
             # Pass action_id instead of purpose string
             msg = self.generator.generate_response(
                 product_cand=top_product,
-                persona_name="일반 고객", # Defaulting for now as persona logic is secondary
-                action_id=target_action_id, # INJECTED HERE
+                persona_name=target_persona, 
+                action_id=target_action_id, 
                 channel="문자(LMS)"
             )
             

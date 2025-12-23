@@ -30,7 +30,9 @@ class DataLoader:
         # 2. Load Action Cycle
         try:
             with open(ACTION_CYCLE_PATH, "r", encoding="utf-8") as f:
-                self.action_cycles = json.load(f)
+                data = json.load(f)
+                # Parse list from 'marketing_scenarios' key
+                self.action_cycles = data.get("marketing_scenarios", [])
         except Exception as e:
             print(f"[Model-2] Error loading action_cycle_db: {e}")
             

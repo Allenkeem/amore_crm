@@ -10,7 +10,7 @@ class Generator:
     def generate_response(self, 
                           product_cand: Any, # ProductCandidate object from Model-1
                           persona_name: str,
-                          action_purpose: str,
+                          action_id: str,
                           channel: str = "문자(LMS)") -> str:
         
         # 1. Extract Factsheet from Candidate
@@ -24,7 +24,7 @@ class Generator:
             brand_name=brand_name,
             factsheet=factsheet,
             persona_name=persona_name,
-            action_purpose=action_purpose,
+            action_id=action_id,
             channel=channel
         )
         
