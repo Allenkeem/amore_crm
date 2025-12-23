@@ -46,7 +46,7 @@ class Orchestrator:
                 "name": p.product_name,
                 "brand": p.brand,
                 "score": p.score,
-                "claims": p.factsheet.key_claims
+                "claims": p.factsheet.voice_info.key_claims
             })
         results["candidates"]["products"] = serialized_products
         results["candidates"]["personas"] = parsed["candidates"]["persona"]

@@ -11,6 +11,7 @@ import os
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
 PRODUCT_CARDS_PATH = os.path.join(BACKEND_ROOT, "data", "product_agent", "product_cards.jsonl")
+NEWS_CARDS_PATH = os.path.join(BACKEND_ROOT, "data", "product_agent", "news_cards.jsonl")
 from .normalize import normalize_brand, normalize_query, extract_attributes
 from .schemas import ProductCandidate, MatchDetails, Evidence, EvidenceHighlight
 from .factsheet import build_factsheet
@@ -74,6 +75,7 @@ class SimpleLexicalIndex:
 class ProductRetriever:
     def __init__(self):
         self.products = {} # id -> data
+        self.news_data = {} # id -> data
         self.index = SimpleLexicalIndex()
         self.max_review_count = 1
         self._load_data()
@@ -110,6 +112,20 @@ class ProductRetriever:
             
             self.index.finalize()
             logger.info(f"Indexed {len(self.products)} products.")
+
+            # Load News Cards
+            logger.info(f"Loading news from {NEWS_CARDS_PATH}")
+            try:
+                with open(NEWS_CARDS_PATH, "r", encoding="utf-8") as f:
+                    for line in f:
+                        if not line.strip(): continue
+                        data = json.loads(line)
+                        pid = data.get("product_id")
+                        if pid:
+                            self.news_data[pid] = data
+                logger.info(f"Loaded {len(self.news_data)} news cards.")
+            except FileNotFoundError:
+                logger.warning(f"News data file not found: {NEWS_CARDS_PATH}")
             
         except FileNotFoundError:
             logger.error(f"Data file not found: {PRODUCT_CARDS_PATH}")
@@ -240,7 +256,7 @@ class ProductRetriever:
                     matched_entities=[parsed["brand"]] if parsed["brand"] else [],
                     matched_attributes=matched_atts
                 ),
-                factsheet=build_factsheet(product),
+                factsheet=build_factsheet(product, self.news_data.get(pid)),
                 evidence=Evidence(highlights=highlights)
             )
             ranked_candidates.append(cand)
