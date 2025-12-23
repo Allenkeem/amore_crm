@@ -1,8 +1,7 @@
 import json
-from typing import List, Dict, Any
+from typing import Dict, Any, List
 from utils.llm_factory import get_llm_client
 from .data_loader import get_data_loader
-from difflib import get_close_matches
 
 class IntentParser:
     def __init__(self):
@@ -11,80 +10,68 @@ class IntentParser:
         
     def parse_query(self, user_text: str) -> Dict[str, Any]:
         """
-        1. LLM Extraction: Extract target search terms.
-        2. Candidate Matching: Find Top matches in DB.
+        Uses LLM to classify the user's intent into one of the Action IDs 
+        defined in action_cycle_db.json.
         """
         
-        # 1. Prepare Persona List for Context
-        persona_context = "\n".join([f"- {name}: {pd.get('desc', '')}" for name, pd in self.loader.personas.items()])
-        
-        # 2. LLM Extraction & Matching
+        # 1. Prepare Action Candidates (ID + Description)
+        # We use the 'matching_description' field for accuracy.
+        candidates_text = ""
+        for action in self.loader.action_cycles:
+            a_id = action.get("id", "UNKNOWN")
+            desc = action.get("matching_description", action.get("name", ""))
+            candidates_text += f"- [{a_id}]: {desc}\n"
+            
+        # 2. Build Prompt for Classification
         prompt = f"""
-        Analyze the user request and map it to the provided Persona list.
-        
-        [Persona List]
-        {persona_context}
-        
-        User Request: "{user_text}"
-        
-        Task:
-        1. Extract 'product' name.
-        2. Identify the best matching 'persona' from the list above. If none perfectly fit, pick the closest one.
-        3. Identify 'purpose' (goal).
-        
-        Return ONLY a JSON object: {{"product": "String", "selected_persona": "Exact Name from List", "purpose": "String"}}
-        """
-        
-        raw_json = self.llm.generate(prompt)
-        # Basic cleaning
-        if "```json" in raw_json:
-            raw_json = raw_json.split("```json")[1].split("```")[0]
-        elif "```" in raw_json:
-            raw_json = raw_json.split("```")[1].split("```")[0]
-            
+[TASK]
+Classify the USER REQUEST into exactly one of the provided Action IDs.
+Choose the ID whose description best matches the user's intent.
+If the request implies a specific season (spring/summer/autumn/winter), ensure you pick the corresponding seasonal ID (e.g., G05_WINTER).
+
+[ACTION ID LIST]
+{candidates_text}
+
+[USER REQUEST]
+"{user_text}"
+
+[OUTPUT FORMAT]
+Return ONLY a JSON object in this format:
+{{
+    "selected_id": "ONE_OF_THE_IDS" or "NONE",
+    "reason": "Short explanation why"
+}}
+"""
+
+        # 3. Call LLM
         try:
-            extracted = json.loads(raw_json)
-        except:
-            extracted = {"product": user_text, "selected_persona": None, "purpose": None}
+            raw_response = self.llm.generate(prompt)
+            # Basic cleaning for JSON parsing
+            clean_json = raw_response.replace("```json", "").replace("```", "").strip()
+            parsed = json.loads(clean_json)
             
-        # 3. Use LLM Selection
-        selected_persona = extracted.get("selected_persona")
-        top_k_personas = []
-        
-        if selected_persona and selected_persona in self.loader.personas:
-            top_k_personas = [selected_persona]
-            # Add scores for UI (Mock score)
-            extracted["persona"] = selected_persona # For display
-        else:
-            # Fallback to fuzzy if LLM failed
-            persona_query = extracted.get("persona") or user_text
-            fuzzy = get_close_matches(persona_query, list(self.loader.personas.keys()), n=3, cutoff=0.4)
-            top_k_personas = fuzzy
-        
-        if not top_k_personas:
-             top_k_personas = list(self.loader.personas.keys())[:3] # Fallback to default list
-
-        # 3. Find Candidates (Purpose)
-        purpose_query = extracted.get("purpose") or ""
-        all_actions = [a.get("stage_name", "Unknown") for a in self.loader.action_cycles]
-        top_k_actions = []
-        if purpose_query:
-            matches = [a for a in all_actions if purpose_query in a or a in purpose_query]
-            fuzzy = get_close_matches(purpose_query, all_actions, n=3, cutoff=0.4)
-            candidates = list(set(matches + fuzzy))
-            top_k_actions = candidates[:3]
+            selected_id = parsed.get("selected_id")
             
-        if not top_k_actions:
-            top_k_actions = all_actions[:3]
+            # Verify if ID exists in our DB
+            valid_ids = [a["id"] for a in self.loader.action_cycles]
+            if selected_id not in valid_ids and selected_id != "NONE":
+                # If invalid ID returned, treat as NONE (safe fail)
+                selected_id = "NONE"
 
-        return {
-            "original_query": user_text,
-            "extracted": extracted,
-            "candidates": {
-                "persona": top_k_personas,
-                "purpose": top_k_actions
+            return {
+                "original_query": user_text,
+                "selected_id": selected_id, # Can be "NONE"
+                "reason": parsed.get("reason", "")
             }
-        }
+
+        except Exception as e:
+            print(f"[IntentParser] Error parsing query: {e}")
+            # Fallback on error
+            return {
+                "original_query": user_text,
+                "selected_id": "NONE",
+                "error": str(e)
+            }
 
 # Singleton
 _parser_instance = None

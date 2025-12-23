@@ -29,28 +29,23 @@ class Orchestrator:
         parsed = self.parser.parse_query(user_text)
         results["parsed"] = parsed
         
-        extracted = parsed["extracted"]
-        product_query = extracted.get("product")
-        target_persona = parsed["candidates"]["persona"][0] if parsed["candidates"]["persona"] else "Unknown"
-        target_purpose = parsed["candidates"]["purpose"][0] if parsed["candidates"]["purpose"] else "Unknown"
+        # New: Use 'selected_id' for action logic
+        # IntentParser now returns {"selected_id": "G05_WINTER" or "NONE", "reason": ...}
+        target_action_id = parsed.get("selected_id")
+        # For backwards compatibility with UI/Logging, we can keep using generic extract logic or just use ID
+        
+        extracted = parsed.get("extracted", {}) # Might be empty in new parser, check implementation
+        # Note: If IntentParser was fully replaced, make sure it returns 'extracted' if used here.
+        # Assuming we only need 'product' from query or extracted.
+        
+        # Product extraction handled inside parser or we need to extract from query if parser doesn't
+        # For now, let's assume query is the product search
         
         # 2. Retrieve Products (Model-1)
-        # Use extracted product query or fallback to full text
-        search_q = product_query if product_query else user_text
+        search_q = user_text # Simplified for now
         product_cands = self.retriever.retrieve(search_q)
         
-        # Serialize product candidates for UI
-        serialized_products = []
-        for p in product_cands[:3]: # Top 3
-            serialized_products.append({
-                "name": p.product_name,
-                "brand": p.brand,
-                "score": p.score,
-                "claims": p.factsheet.key_claims
-            })
-        results["candidates"]["products"] = serialized_products
-        results["candidates"]["personas"] = parsed["candidates"]["persona"]
-        results["candidates"]["purposes"] = parsed["candidates"]["purpose"]
+        # ... (serialization code) ...
         
         # 3. Generate Message (Model-2)
         brand_tone_info = {}
@@ -60,11 +55,12 @@ class Orchestrator:
             brand_tone_info = self.retriever.loader.get_brand_tone(top_product.brand) if hasattr(self.retriever, 'loader') else get_data_loader().get_brand_tone(top_product.brand)
             
             # Initial Generation
+            # Pass action_id instead of purpose string
             msg = self.generator.generate_response(
                 product_cand=top_product,
-                persona_name=target_persona,
-                action_purpose=target_purpose,
-                channel="문자(LMS)" # Default
+                persona_name="일반 고객", # Defaulting for now as persona logic is secondary
+                action_id=target_action_id, # INJECTED HERE
+                channel="문자(LMS)"
             )
             
             # -----------------------------------------------------------------

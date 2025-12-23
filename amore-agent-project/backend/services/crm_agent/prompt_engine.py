@@ -6,7 +6,7 @@ def build_prompt(
     brand_name: str,
     factsheet: Dict[str, Any],
     persona_name: str,
-    action_purpose: str,
+    action_id: str,  # Changed from action_purpose string to specific ID
     channel: str = "문자(LMS)"
 ) -> str:
     """
@@ -22,71 +22,106 @@ def build_prompt(
     # 1. Fetch Contexts
     brand_tone = loader.get_brand_tone(brand_name)
     persona_info = loader.get_persona_info(persona_name)
-    action_info = loader.get_action_info(action_purpose)
+    
+    # NEW: Fetch explicit action info by ID (if provided)
+    action_info = {}
+    if action_id and action_id != "NONE":
+        for ac in loader.action_cycles:
+            if ac["id"] == action_id:
+                action_info = ac
+                break
+        # Fallback if ID was provided but not found
+        if not action_info:
+            action_info = {"name": action_id}
     
     # 2. Format Context Sections
     
     # [Brand Tone]
-    tone_desc = brand_tone.get("tone_voice", "친절하고 전문적인")
-    brand_guide = brand_tone.get("guidelines", [])
-    brand_guide_str = "\n".join([f"- {g}" for g in brand_guide]) if brand_guide else "- 브랜드의 품격을 지키며 신뢰감을 주세요."
+    tone_desc = brand_tone.get("tone_adjectives", ["친절한", "전문적인"])
+    if isinstance(tone_desc, list):
+        tone_str = ", ".join(tone_desc)
+    else:
+        tone_str = tone_desc
+        
+    voice_instruction = brand_tone.get("voice_instruction", "브랜드의 품격을 지키며 신뢰감을 주세요.")
+    ending_style = brand_tone.get("ending_style", "정중한 해요체")
 
     # [Target Persona]
     p_desc = persona_info.get("persona_description", "일반 고객")
-    p_keywords = ", ".join(persona_info.get("derived_keywords", [])[:5]) # Top 5 relevant keywords
+    p_keywords = ", ".join(persona_info.get("derived_keywords", [])[:5])
     
-    # [Action / Goal]
-    goal = action_info.get("message_goal", action_purpose)
-    strategy = action_info.get("strategy", "고객의 니즈에 맞춰 추천")
+    # [Action / Context]
+    context_guide = ""
+    action_name = "일반 상품 소개" # Default name
     
+    if action_info:
+        situation = action_info.get("situation", "")
+        keywords = action_info.get("keywords", [])
+        writing_tip = action_info.get("core_guide", {}).get("writing_tip", "")
+        
+        if situation:
+            context_guide += f"- 상황: {situation}\n"
+        if keywords:
+            kw_str = ", ".join(keywords)
+            context_guide += f"- 필수 반영 키워드: {kw_str}\n"
+        if writing_tip:
+            context_guide += f"- 작성 팁: {writing_tip}\n"
+            
+        action_name = action_info.get("name", action_id)
+
     # [Product Factsheet]
     category = factsheet.get("category", "화장품")
     claims = ", ".join(factsheet.get("key_claims", []))
     usage = ", ".join(factsheet.get("usage", []))
     
-    # 3. Construct System Prompt (PATCH-M2-AD-SCAFFOLD-v1)
+    # 3. Construct System Prompt
+    
+    # Conditional guide section
+    guide_section = ""
+    if context_guide:
+        guide_section = f"""
+[CONTEXTUAL GUIDE]
+{context_guide}
+"""
+
     system_prompt = f"""
 [ROLE]
-너는 대한민국 화장품 브랜드의 CRM 광고 메시지를 작성하는 AI다.
-모든 출력은 '광고'로 간주된다.
+너는 대한민국 뷰티 브랜드 '{brand_name}'의 CRM 마케터다.
+아래 브랜드 페르소나와 가이드를 완벽하게 체화하여 메시지를 작성하라.
+
+[BRAND VOICE]
+- Tone & Manner: {tone_str}
+- 말투(Ending): {ending_style}
+- 지침: {voice_instruction}
 
 [MANDATORY RULES]
 1. 메시지의 첫 줄은 반드시 "(광고)"로 시작한다.
-2. 의학적/치료적 효능을 암시하거나 단정하는 표현을 절대 사용하지 않는다.
-   (예: 치료, 개선, 회복, 완화, 처방, 임상적으로 입증 → 금지)
-3. 기능 표현은 반드시 '사용감', '도움', '느낌', '케어' 수준으로 한정한다.
-4. 과장·최고·완벽·확실·즉시 효과 등의 단정적 표현을 금지한다.
-5. 정보 제공형·권유형 톤을 유지하며, 판단은 소비자에게 남긴다.
-6. 법적 고지·광고 표시를 임의로 생략하지 않는다.
+2. 의학적/치료적 효능(치료, 개선, 회복, 처방 등)을 암시하는 표현 절대 금지.
+3. 과장된 표현(최고, 완벽, 100%, 즉시 등) 사용 금지.
+4. 법적 고지·광고 표시를 생략하지 말 것.
+{guide_section}
+[TARGET PERSONA]
+- 고객 성향: {p_desc}
+- 관심 키워드: {p_keywords}
 
-[ALLOWED STYLE]
-- 부드러운 CRM 톤
-- 사용 상황 중심 설명
-- 감각/루틴/경험 위주 서술
-- 브랜드 톤: {tone_desc} ({brand_guide_str})
-- 타겟 페르소나 Key: {p_keywords}
-
-[OUTPUT CONSTRAINT]
-- 위 규칙을 어길 경우 출력은 무효다.
 """
 
     # 4. Construct User Input
     user_input = f"""
 ---
-[1. 대상 상품: {product_name}]
+[작업 요청]
+다음 상품에 대한 CRM 메시지를 작성해줘.
+
+1. 상품 정보
+- 상품명: {product_name}
 - 카테고리: {category}
-- 핵심 소구 포인트: {claims}
-- 사용법: {usage}
+- 핵심 소구점: {claims}
 
-[2. 타겟 고객: {persona_name}]
-- 성향: {p_desc}
-
-[3. 발송 요청]
+2. 발송 정보
 - 채널: {channel}
-- 목적: {action_purpose}
----
+- 목적: {action_name}
 
-위 정보를 바탕으로 고객에게 보낼 메시지 본문을 작성해줘. (구조: [제목] / [본문])
+위 가이드와 *BRAND VOICE*를 반영하여, 고객의 마음을 움직이는 매력적인 카피를 작성해줘. (구조: [제목] / [본문])
 """
 
     return system_prompt.strip() + "\n\n" + user_input.strip()
