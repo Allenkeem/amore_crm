@@ -6,6 +6,7 @@ DATA_DIR = os.path.join(BASE_DIR, "../data/rag_documents")
 
 # Data Files
 PRODUCT_CARDS_PATH = os.path.join(DATA_DIR, "product_cards.jsonl")
+NEWS_CARDS_PATH = os.path.join(DATA_DIR, "news_cards.jsonl")
 TOPIC_CARDS_PATH = os.path.join(DATA_DIR, "topic_cards.jsonl")
 PERSONA_CARDS_PATH = os.path.join(DATA_DIR, "persona_cards.jsonl")
 

@@ -1,6 +1,6 @@
 from typing import Dict, List, Any
 import re
-from .schemas import Factsheet, FactsheetSignals
+from .schemas import Factsheet, FactsheetSignals, VoiceInfo, OfficialInfo
 
 def extract_usage(reviews: List[str]) -> List[str]:
     """Extract usage instructions from reviews (Heuristic)."""
@@ -34,8 +34,8 @@ def infer_category(product_name: str, topic_labels: List[str]) -> str:
     if "클렌징" in name or "워시" in name or "폼" in name: return "클렌징"
     return "기타"
 
-def build_factsheet(product_data: Dict[str, Any]) -> Factsheet:
-    """Construct a Factsheet from product data."""
+def build_factsheet(product_data: Dict[str, Any], news_data: Dict[str, Any] = None) -> Factsheet:
+    """Construct a Factsheet from product data and optional news data."""
     
     # 1. Category
     topics = []
@@ -45,7 +45,7 @@ def build_factsheet(product_data: Dict[str, Any]) -> Factsheet:
     
     category = infer_category(product_data.get("product_name", ""), topics)
     
-    # 2. Key Claims (Persona Keywods + Topic Keywords)
+    # 2. Key Claims (Persona Keywods + Topic Keywords) -> Voice Info
     key_claims = set()
     
     # Add fit reasons (which are keywords)
@@ -61,7 +61,7 @@ def build_factsheet(product_data: Dict[str, Any]) -> Factsheet:
                 for k in topic.get("keywords", [])[:3]:
                     key_claims.add(k)
     
-    # 3. Signals
+    # 3. Signals -> Voice Info
     signals = FactsheetSignals()
     if "signals" in product_data:
         eff = product_data["signals"].get("EFFICACY", [])
@@ -72,13 +72,24 @@ def build_factsheet(product_data: Dict[str, Any]) -> Factsheet:
         signals.PURCHASE = [t.get("topic_label", "").split("_", 1)[1] if "_" in t.get("topic_label", "") else t.get("topic_label", "") 
                             for t in pur[:3]]
 
-    # 4. Usage
+    # 4. Usage -> Voice Info
     reviews = product_data.get("sample_reviews", [])
     usage = extract_usage(reviews)
     
-    return Factsheet(
-        category=category,
-        key_claims=list(key_claims)[:10], # Limit to 10
+    voice_info = VoiceInfo(
+        key_claims=list(key_claims)[:10],
         usage=usage,
         signals=signals
+    )
+    
+    # 5. Official Info (from News)
+    official_info = OfficialInfo()
+    if news_data:
+        official_info.extracted_facts = news_data.get("extracted_facts", [])
+    
+    return Factsheet(
+        product_id=product_data.get("product_id", ""),
+        category=category,
+        official_info=official_info,
+        voice_info=voice_info
     )
