@@ -418,13 +418,12 @@ with col_right:
     # -------------------------------------------------------------------------
     # 2. Recommendation Chips (Placed ABOVE input)
     # -------------------------------------------------------------------------
-    # Recommendation List
-    # Recommendation List
-    examples = [
+    # Dynamic Proposals from Session State (or Defaults)
+    current_suggestions = st.session_state.get("latest_suggestions", [
         "👋 신규 회원가입을 환영하는 메시지를 작성해주세요.",
         "🎁 신규 고객을 위한 첫 구매 20% 할인 쿠폰 메시지",
         "💄 라네즈 크림스킨 추천 메시지"
-    ]
+    ])
     
     # Horizontal Layout (3 columns)
     rc1, rc2, rc3 = st.columns(3)
@@ -434,12 +433,19 @@ with col_right:
         st.session_state.input_text = ex_text
         st.rerun()
 
-    if rc1.button("👋 신규 가입 환영", help=examples[0], use_container_width=True):
-        click_example(examples[0])
-    if rc2.button("🎁 첫 구매 할인", help=examples[1], use_container_width=True):
-        click_example(examples[1])
-    if rc3.button("💄 라네즈 추천", help=examples[2], use_container_width=True):
-        click_example(examples[2])
+    # Determine Label (Short) vs Text (Full)
+    # For initial defaults, Label == Text. For dynamic suggestions, Label is the suggestion itself.
+    
+    s1 = current_suggestions[0] if len(current_suggestions) > 0 else "추천 1"
+    s2 = current_suggestions[1] if len(current_suggestions) > 1 else "추천 2"
+    s3 = current_suggestions[2] if len(current_suggestions) > 2 else "추천 3"
+
+    if rc1.button(s1, use_container_width=True):
+        click_example(s1)
+    if rc2.button(s2, use_container_width=True):
+        click_example(s2)
+    if rc3.button(s3, use_container_width=True):
+        click_example(s3)
 
 
 
@@ -549,8 +555,9 @@ with col_right:
                                                 collected_data["audit_trail"] = val
                                             elif key == "parsed":
                                                 collected_data["parsed"] = val
-                                                # Add a log entry for intent
-                                                # execution_logs.append("의도 분석 완료") # Optional, might be too verbose
+                                                
+                                            elif key == "suggestions":
+                                                collected_data["suggestions"] = val
                                         
                                         elif evt_type == "error":
                                             st.error(f"Server Error: {event.get('msg')}")
@@ -560,6 +567,10 @@ with col_right:
                         
                         # Stream Finished
                         status_container.empty() # Remove status bar
+                        
+                        # Update Suggestions for Next Turn
+                        if "suggestions" in collected_data:
+                            st.session_state.latest_suggestions = collected_data["suggestions"]
                         
                         # Add to History
                         st.session_state.chat_history.append({

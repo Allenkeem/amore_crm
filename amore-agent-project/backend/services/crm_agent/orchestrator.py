@@ -121,6 +121,19 @@ class Orchestrator:
             yield {"type": "data", "key": "final_message", "value": final_msg}
             yield {"type": "data", "key": "audit_trail", "value": audit_trail}
             
+            # -----------------------------------------------------------------
+            # DYNAMIC SUGGESTIONS (Post-Generation)
+            # -----------------------------------------------------------------
+            yield {"type": "status", "msg": "추가 제안을 생각하고 있어요... 💡"}
+            print("[Orchestrator] Calling generate_suggestions...")
+            suggestions = self.generator.generate_suggestions(
+                original_msg=final_msg,
+                product_name=top_product.product_name,
+                target_persona=target_persona
+            )
+            print(f"[Orchestrator] Yielding suggestions: {suggestions}")
+            yield {"type": "data", "key": "suggestions", "value": suggestions}
+            
         else:
             # No products found
             candidates_data["detected_brand"] = "Unknown"
