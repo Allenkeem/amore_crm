@@ -1,9 +1,10 @@
+import os
 import streamlit as st
 import requests
 import json
 
 # Configuration
-BACKEND_URL = "http://localhost:8000/chat"
+BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/chat")
 
 # -------------------------------------------------------------------------
 # Page Config & Custom CSS
