@@ -1,9 +1,11 @@
 import sys
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from typing import Dict, Any, List, Optional
 import uvicorn
+import json
 
 # -------------------------------------------------------------------------
 # Path Setup
@@ -35,29 +37,28 @@ class ChatResponse(BaseModel):
 # -------------------------------------------------------------------------
 # API Endpoints
 # -------------------------------------------------------------------------
-@app.post("/chat", response_model=ChatResponse)
+@app.post("/chat")
 async def chat_endpoint(request: ChatRequest):
     if not request.message:
         raise HTTPException(status_code=400, detail="Message cannot be empty")
     
-    try:
-        # 1. Orchestrator Process
-        results = orch.process_query(request.message)
-        
-        # 2. Extract Response
-        final_msg = results.get("final_message", "Error generation message.")
-        candidates = results.get("candidates", {})
-        parsed = results.get("parsed", {})
-        
-        return ChatResponse(
-            final_message=final_msg,
-            candidates=candidates,
-            parsed=parsed
-        )
-            
-    except Exception as e:
-        print(f"Error processing request: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+    async def event_generator():
+        try:
+            # Iterate over the generator from orchestrator
+            # Note: process_query_stream is a synchronous generator, so we iterate normally.
+            # If it were async, we'd use async for.
+            for event in orch.process_query_stream(request.message):
+                # Format as SSE (Server-Sent Events)
+                # data: <json>\n\n
+                json_data = json.dumps(event, ensure_ascii=False)
+                yield f"data: {json_data}\n\n"
+                
+        except Exception as e:
+            print(f"Error during streaming: {e}")
+            error_event = {"type": "error", "msg": str(e)}
+            yield f"data: {json.dumps(error_event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 @app.get("/health")
 def health_check():

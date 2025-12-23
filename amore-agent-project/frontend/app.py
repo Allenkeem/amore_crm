@@ -473,96 +473,103 @@ with col_right:
             </div>
             """, unsafe_allow_html=True)
         else:
-            # 1. Show Custom "Thinking" Animation
-            loading_html = """
-            <style>
-            @keyframes blink {
-                0% { opacity: 0.2; transform: scale(1); }
-                20% { opacity: 1; transform: scale(1.2); }
-                100% { opacity: 0.2; transform: scale(1); }
-            }
-            .typing-indicator {
-                display: inline-flex;
-                align-items: center;
-                gap: 5px;
-                background-color: #F5F9FF; /* Same as AI bubble */
-                padding: 12px 20px;
-                border-radius: 4px 24px 24px 24px; /* Same rounded corner */
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-                margin-bottom: 10px;
-                width: fit-content;
-            }
-            .typing-dot {
-                width: 8px;
-                height: 8px;
-                background-color: #2848FC; /* Brand Blue */
-                border-radius: 50%;
-                animation: blink 1.4s infinite both;
-            }
-            .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-            .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-            </style>
-            
-            <div class="typing-indicator">
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
-                <div class="typing-dot"></div>
+            # 1. Show Custom "Thinking" Animation with Dynamic Status
+            # 1. Show Custom "Thinking" Animation with Dynamic Status
+            # Dynamic content is now handled by the stream loop below.
+            status_html_template = """
+            <div style="display:flex; align-items:center; gap:12px; background-color:#F5F9FF; padding:16px 24px; border-radius:12px; border:1px solid #E1E8F5; margin-bottom:24px; width:fit-content;">
+                <div style="width:20px; height:20px; border:3px solid #E1E8F5; border-top:3px solid #2848FC; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+                <div style="font-size:0.95rem; color:#526388; font-weight:500;">요청을 준비 중입니다...</div>
             </div>
             """
             
-            with loading_container:
-                st.markdown(loading_html, unsafe_allow_html=True)
-                try:
-                    full_prompt = f"[{channel}] {user_input}"
-                    if tone != "기본":
-                         full_prompt += f" (톤: {tone})"
-                    
-                    response = requests.post(BACKEND_URL, json={"message": full_prompt})
+            # 1. Reuse the container above the input
+            status_container = loading_container
+            
+            # Helper to render the Status Bubble (Minimalist)
+            def render_status_bubble(current_status):
+                html = f"""
+                <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; padding-left: 4px;">
+                    <div style="width:16px; height:16px; border:2px solid #E1E8F5; border-top:2px solid #2848FC; border-radius:50%; animation:spin 1s linear infinite;"></div>
+                    <style>@keyframes spin {{ 0% {{ transform: rotate(0deg); }} 100% {{ transform: rotate(360deg); }} }}</style>
+                    <span style="font-size:0.9rem; color:#526388; font-weight:500;">{current_status}</span>
+                </div>
+                """
+                return html
+
+            try:
+                full_prompt = f"[{channel}] {user_input}"
+                if tone != "기본":
+                        full_prompt += f" (톤: {tone})"
+                
+                # Request with stream=True
+                with requests.post(BACKEND_URL, json={"message": full_prompt}, stream=True) as response:
                     if response.status_code == 200:
-                        data = response.json()
-                        final_msg = data.get("final_message", "")
                         
-                        # Streaming Simulation
-                        stream_placeholder = st.empty()
-                        # We need to render the bubble structure but update text
-                        # Since the history loop is above, we can use a placeholder located there
-                        # But wait, we act specifically *after* the history loop. 
-                        # We need to find where the history loop ends. 
-                        # To make this work cleanly, we should output the stream content *here*, 
-                        # but "here" is inside the form logic which might be visually below the inputs if not careful.
-                        # Actually, `loading_container` is ABOVE the input. We can reuse it or a new one!
-                        # `loading_container` is where the spinner/animation was. 
-                        # Let's use `loading_container` for streaming too!
+                        # Temp storage for final history
+                        collected_data = {
+                            "candidates": {},
+                            "final_message": "",
+                            "parsed": {},
+                            "audit_trail": []
+                        }
                         
-                        full_html_template = """
-                        <div style="display:flex; justify-content:flex-start; margin-bottom:1.5rem;">
-                            <div style="background-color:#F5F9FF; padding:20px; border-radius:4px 24px 24px 24px; max-width:85%; box-shadow: 0 2px 12px rgba(3, 27, 87, 0.04);">
-                                <div style="font-weight:700; color:#2848FC; margin-bottom:8px; display:flex; align-items:center; gap:6px;">
-                                    <span>🤖</span> 생성된 결과
-                                </div>
-                                <div style="white-space: pre-wrap; line-height:1.6; color:#031B57;">{text}</div>
-                            </div>
-                        </div>
-                        """
+                        current_status_msg = "연결 중..."
+                        status_container.markdown(render_status_bubble(current_status_msg), unsafe_allow_html=True)
                         
-                        import time
-                        step_size = 3 # chars per step
-                        for i in range(0, len(final_msg) + 1, step_size):
-                            current_text = final_msg[:i]
-                            # Update the container
-                            with loading_container:
-                                st.markdown(full_html_template.format(text=current_text), unsafe_allow_html=True)
-                            time.sleep(0.01) # fast typing
-                            
-                        # Append to History
+                        for line in response.iter_lines():
+                            if line:
+                                decoded_line = line.decode('utf-8')
+                                if decoded_line.startswith("data: "):
+                                    json_str = decoded_line[6:] # remove "data: "
+                                    try:
+                                        event = json.loads(json_str)
+                                        evt_type = event.get("type")
+                                        
+                                        if evt_type == "status":
+                                            # Update Status Text
+                                            current_status_msg = event.get("msg", "...")
+                                            status_container.markdown(render_status_bubble(current_status_msg), unsafe_allow_html=True)
+                                            
+                                        elif evt_type == "data":
+                                            key = event.get("key")
+                                            val = event.get("value")
+                                            
+                                            if key == "candidates":
+                                                collected_data["candidates"] = val
+                                                # Product logging removed
+                                                
+                                            elif key == "final_message":
+                                                collected_data["final_message"] = val
+                                                # We don't render final message here to avoid visual glitch.
+                                                # It will be rendered when the history loop updates.
+                                                
+                                            elif key == "audit_trail":
+                                                collected_data["audit_trail"] = val
+                                            elif key == "parsed":
+                                                collected_data["parsed"] = val
+                                                # Add a log entry for intent
+                                                # execution_logs.append("의도 분석 완료") # Optional, might be too verbose
+                                        
+                                        elif evt_type == "error":
+                                            st.error(f"Server Error: {event.get('msg')}")
+                                            
+                                    except json.JSONDecodeError:
+                                        continue
+                        
+                        # Stream Finished
+                        status_container.empty() # Remove status bar
+                        
+                        # Add to History
                         st.session_state.chat_history.append({
                             "prompt": user_input,
-                            "response_data": data
+                            "response_data": collected_data
                         })
-                        # Clear input state for next turn
                         st.session_state.input_text = ""
                         st.rerun()
+                        
                     else:
                         st.error(f"Error {response.status_code}")
-                except Exception as e:
-                    st.error(f"Connection Failed: {e}")
+            except Exception as e:
+                st.error(f"Connection Failed: {e}")
