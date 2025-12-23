@@ -13,15 +13,16 @@ from dotenv import load_dotenv
 load_dotenv(backend_root / ".env")
 
 # File Paths
-SPAM_DB_PATH = list(data_dir.glob("*불법스팸*.json"))[0] if list(data_dir.glob("*불법스팸*.json")) else data_dir / "불법스팸_방지_안내서_임베딩.json"
-COSMETICS_DB_PATH = list(data_dir.glob("*화장품_지침*.json"))[0] if list(data_dir.glob("*화장품_지침*.json")) else data_dir / "화장품_지침_임베딩.json"
+SPAM_DB_PATH = list(data_dir.glob("*불법스팸*_local.json"))[0] if list(data_dir.glob("*불법스팸*_local.json")) else data_dir / "불법스팸_방지_안내서_임베딩_local.json"
+COSMETICS_DB_PATH = list(data_dir.glob("*화장품_지침*_local.json"))[0] if list(data_dir.glob("*화장품_지침*_local.json")) else data_dir / "화장품_지침_임베딩_local.json"
 
-# OpenAI
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# OpenAI / Local LLM Config
+OPENAI_API_KEY = "ollama"
+API_BASE_URL = "http://localhost:11434/v1"
 
-# Models
-EMBEDDING_MODEL = "text-embedding-3-small"
-LLM_MODEL = "gpt-4o"
+# Models (Local)
+EMBEDDING_MODEL = "nomic-embed-text"
+LLM_MODEL = "llama3.1"
 
 # Prompts
 SYSTEM_PROMPT_TEMPLATE = """

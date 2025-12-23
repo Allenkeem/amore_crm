@@ -20,32 +20,47 @@ class IntentParser:
         
         # 2. LLM Extraction & Matching
         prompt = f"""
-        Analyze the user request and map it to the provided Persona list.
-        
-        [Persona List]
+        [ROLE]
+        You are a smart extractor. Your task is to extract 'product', 'selected_persona', and 'purpose' from the User Request.
+
+        [Persona Candidates]
         {persona_context}
-        
-        User Request: "{user_text}"
-        
-        Task:
-        1. Extract 'product' name.
-        2. Identify the best matching 'persona' from the list above. If none perfectly fit, pick the closest one.
-        3. Identify 'purpose' (goal).
-        
-        Return ONLY a JSON object: {{"product": "String", "selected_persona": "Exact Name from List", "purpose": "String"}}
+
+        [User Request]
+        "{user_text}"
+
+        [Output Format]
+        Return ONLY valid JSON. No explanations.
+        {{
+            "product": "Extract specific product name (or 'None' if not found)",
+            "selected_persona": "Exact Persona Name from the list above (or 'None')",
+            "purpose": "Marketing Goal (e.g. Purchase, Repurchase, Review)"
+        }}
         """
         
         raw_json = self.llm.generate(prompt)
-        # Basic cleaning
-        if "```json" in raw_json:
-            raw_json = raw_json.split("```json")[1].split("```")[0]
-        elif "```" in raw_json:
-            raw_json = raw_json.split("```")[1].split("```")[0]
-            
+        print(f"[IntentParser] Raw LLM Output: {raw_json}") # Debug log
+        
+        # Robust Cleaning for Llama 3.1
         try:
+            # Try to find JSON block
+            if "```json" in raw_json:
+                raw_json = raw_json.split("```json")[1].split("```")[0].strip()
+            elif "```" in raw_json:
+                raw_json = raw_json.split("```")[1].split("```")[0].strip()
+            # Try finding first { and last }
+            else:
+                p1 = raw_json.find("{")
+                p2 = raw_json.rfind("}")
+                if p1 != -1 and p2 != -1:
+                    raw_json = raw_json[p1:p2+1]
+            
             extracted = json.loads(raw_json)
-        except:
-            extracted = {"product": user_text, "selected_persona": None, "purpose": None}
+        except Exception as e:
+            print(f"[IntentParser] JSON Parse Error: {e}")
+            # Fallback: Treat whole text as product if short, else fail
+            product_guess = user_text if len(user_text) < 20 else "None"
+            extracted = {"product": product_guess, "selected_persona": None, "purpose": "General"}
             
         # 3. Use LLM Selection
         selected_persona = extracted.get("selected_persona")

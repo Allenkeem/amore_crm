@@ -7,16 +7,18 @@ from dotenv import load_dotenv
 load_dotenv()
 
 class LLMClient:
-    def __init__(self, api_key: Optional[str] = None, model: str = "gpt-4o-mini"):
-        # Try to get key from args, then env, then maybe a hardcoded place if for dev (not recommended)
-        self.api_key = api_key or os.getenv("OPENAI_API_KEY")
-        self.client = None
+    def __init__(self, api_key: Optional[str] = None, model: str = "llama3.1"):
+        # [Local Switch] Use Ollama settings
+        self.api_key = "ollama" # Dummy key for Ollama
+        self.base_url = "http://localhost:11434/v1"
         self.model = model
         
-        if self.api_key:
-            self.client = openai.OpenAI(api_key=self.api_key)
-        else:
-            print("[LLMClient] Warning: OPENAI_API_KEY not found. Responses will be mocked.")
+        print(f"[LLMClient] Connecting to Local LLM at {self.base_url} (Model: {self.model})...")
+        
+        self.client = openai.OpenAI(
+            base_url=self.base_url,
+            api_key=self.api_key
+        )
 
     def generate(self, prompt: str, system_message: str = None) -> str:
         if not self.client:

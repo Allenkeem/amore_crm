@@ -2,13 +2,15 @@ import os
 import numpy as np
 from openai import OpenAI
 from sklearn.metrics.pairwise import cosine_similarity
-from .config import OPENAI_API_KEY, EMBEDDING_MODEL, LLM_MODEL
+from .config import OPENAI_API_KEY, EMBEDDING_MODEL, LLM_MODEL, API_BASE_URL
 
 class RetrievalEngine:
     def __init__(self):
-        if not OPENAI_API_KEY:
-            raise ValueError("OPENAI_API_KEY is not set.")
-        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        print(f"[RegulationAgent] Connecting to Local LLM at {API_BASE_URL}...")
+        self.client = OpenAI(
+            api_key=OPENAI_API_KEY,
+            base_url=API_BASE_URL
+        )
         
     def get_embedding(self, text, model=EMBEDDING_MODEL):
         text = text.replace("\n", " ")
