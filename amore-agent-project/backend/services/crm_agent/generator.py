@@ -54,7 +54,47 @@ class Generator:
         {original_msg}
         """
         return self.client.generate(prompt=prompt)
-        return self.client.generate(prompt=prompt)
+
+    def generate_suggestions(self, original_msg: str, product_name: str, target_persona: str) -> list:
+        """
+        Generate 3 actionable follow-up suggestions based on the generated message.
+        """
+        print(f"[Model-2] Generating dynamic suggestions...")
+        
+        prompt = f"""
+        [Role]
+        You are a senior CRM Marketing Editor.
+        
+        [Task]
+        Analyze the following CRM message generated for '{product_name}' targeting '{target_persona}'.
+        Suggest 3 specific, short, and actionable requests to improve or vary the message.
+        
+        [Input Message]
+        "{original_msg}"
+        
+        [Guidelines]
+        1. Access from 4 perspectives: Length/Readability, Tone, Benefit Emphasis, Engagement.
+        2. Suggestions must be concise (under 15 Korean characters).
+        3. Examples: "더 짧게 줄여줘", "감성적인 톤으로", "할인율을 제목에", "이모지 더 많이"
+        4. Return ONLY a Python list of strings. Do not include markdown formatting or explanations.
+        
+        [Output Format]
+        ["Valid Suggestion 1", "Valid Suggestion 2", "Valid Suggestion 3"]
+        """
+        
+        response_text = self.client.generate(prompt=prompt)
+        
+        # Simple parsing to ensure list format
+        try:
+            import ast
+            # Cleanup markdown code blocks if present
+            cleaned_text = response_text.replace("```json", "").replace("```python", "").replace("```", "").strip()
+            suggestions = ast.literal_eval(cleaned_text)
+            if isinstance(suggestions, list):
+                return suggestions[:3] # Ensure max 3
+            return ["더 짧게 줄여줘", "톤을 부드럽게", "혜택 강조해줘"] # Fallback
+        except:
+            return ["더 짧게 줄여줘", "톤을 부드럽게", "혜택 강조해줘"] # Fallback
 
 # Singleton
 _gen_instance = None
