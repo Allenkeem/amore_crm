@@ -62,7 +62,7 @@ class IntentParser:
             top_k_personas = fuzzy
         
         if not top_k_personas:
-             top_k_personas =  all_personas[:3] # Fallback to default list
+             top_k_personas = list(self.loader.personas.keys())[:3] # Fallback to default list
 
         # 3. Find Candidates (Purpose)
         purpose_query = extracted.get("purpose") or ""
