@@ -50,13 +50,13 @@ def build_prompt(
     do_not_rules = brand_voice.get("do_not", "과장된 표현 금지")
 
     # [Target Persona]
-    p_desc = persona_info.get("persona_description", "일반 고객")
+    p_desc = persona_info.get("desc", "일반 고객")
     p_keywords = ", ".join(persona_info.get("derived_keywords", [])[:5])
     
     # [Action / Goal]
-    # Use 'messaging_hook' as the primary guide for generation
+    # Use 'messaging_hook' as the primary guide, fallback to 'matching_description'
     action_name = action_info.get("name", action_id)
-    messaging_hook = action_info.get("core_guide", {}).get("messaging_hook", "")
+    messaging_hook = action_info.get("core_guide", {}).get("messaging_hook") or action_info.get("matching_description", "")
     writing_tip = action_info.get("core_guide", {}).get("writing_tip", "")
     
     # [Product Factsheet]

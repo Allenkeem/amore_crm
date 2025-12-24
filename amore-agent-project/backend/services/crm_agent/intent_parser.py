@@ -18,21 +18,28 @@ class IntentParser:
         # 1. Prepare Persona List for Context
         persona_context = "\n".join([f"- {name}: {pd.get('desc', '')}" for name, pd in self.loader.personas.items()])
         
-        # 2. LLM Extraction & Matching
+        # 2. Action List for Context
+        action_context = "\n".join([f"- {ac['id']}: {ac.get('matching_description', '')}" for ac in self.loader.action_cycles])
+        
+        # 3. LLM Extraction & Matching
         prompt = f"""
-        Analyze the user request and map it to the provided Persona list.
+        Analyze the user request and map it to the provided Persona list and Action Scenario list.
         
         [Persona List]
         {persona_context}
+
+        [Action Scenario List]
+        {action_context}
         
         User Request: "{user_text}"
         
         Task:
         1. Extract 'product' name.
-        2. Identify the best matching 'persona' from the list above. If none perfectly fit, pick the closest one.
-        3. Identify 'purpose' (goal).
+        2. Identify the best matching 'persona' from the list above.
+        3. Identify the best matching 'action_id' from the Action Scenario List. (e.g., G01_WELCOME, G05_WINTER)
+        4. Summarize the 'purpose' (intent).
         
-        Return ONLY a JSON object: {{"product": "String", "selected_persona": "Exact Name from List", "purpose": "String"}}
+        Return ONLY a JSON object: {{"product": "String", "selected_persona": "Exact Name", "selected_action_id": "ID", "purpose": "String"}}
         """
         
         raw_json = self.llm.generate(prompt)
@@ -45,7 +52,7 @@ class IntentParser:
         try:
             extracted = json.loads(raw_json)
         except:
-            extracted = {"product": user_text, "selected_persona": None, "purpose": None}
+            extracted = {"product": user_text, "selected_persona": None, "selected_action_id": None, "purpose": None}
             
         # 3. Use LLM Selection
         selected_persona = extracted.get("selected_persona")
@@ -64,35 +71,44 @@ class IntentParser:
         if not top_k_personas:
              top_k_personas = list(self.loader.personas.keys())[:3] # Fallback to default list
 
-        # 3. Find Candidates (Purpose)
-        purpose_query = extracted.get("purpose") or ""
+        # 5. Determine Action Candidate
+        selected_id = extracted.get("selected_action_id")
         
-        all_actions_for_matching = []
-        candidates_text = ""
-        for action in self.loader.action_cycles:
-            a_id = action.get("id", "UNKNOWN")
-            desc = action.get("matching_description", action.get("name", ""))
-            
-            # [NEW] Inject Context/Situation for better selection
-            situation = action.get("situation", "")
-            context_guide = action.get("core_guide", {}).get("context", "")
-            
-            extra_context = ""
-            if situation:
-                extra_context = f" [SITUATION: {situation}]"
-            elif context_guide:
-                extra_context = f" [CONTEXT: {context_guide}]"
-                
-            full_action_description = f"[{a_id}]: {desc}{extra_context}"
-            candidates_text += f"- {full_action_description}\n"
-            all_actions_for_matching.append(full_action_description) # Use this for matching
+        # Validate ID
+        valid_ids = [ac['id'] for ac in self.loader.action_cycles]
+        if selected_id and selected_id not in valid_ids:
+            selected_id = None # Invalid ID from LLM
             
         top_k_actions = []
-        if purpose_query:
-            matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
-            fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
-            candidates = list(set(matches + fuzzy))
-            top_k_actions = candidates[:3]
+        
+        # Specific Action Selected by LLM?
+        if selected_id:
+             for ac in self.loader.action_cycles:
+                 if ac['id'] == selected_id:
+                     desc = ac.get("matching_description", ac.get("name", ""))
+                     top_k_actions.append(f"[{selected_id}]: {desc}")
+                     break
+        
+        # Fallback: Search by Purpose if no ID or ID was invalid
+        if not top_k_actions:
+            purpose_query = extracted.get("purpose") or ""
+            
+            all_actions_for_matching = []
+            for action in self.loader.action_cycles:
+                a_id = action.get("id", "UNKNOWN")
+                desc = action.get("matching_description", action.get("name", ""))
+                # Inject situation for better manual reading if needed
+                situation = action.get("situation", "")
+                extra_context = f" [SITUATION: {situation}]" if situation else ""
+                    
+                full_action_description = f"[{a_id}]: {desc}{extra_context}"
+                all_actions_for_matching.append(full_action_description) 
+            
+            if purpose_query:
+                matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
+                fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
+                candidates = list(set(matches + fuzzy))
+                top_k_actions = candidates[:3]
             
         if not top_k_actions:
             top_k_actions = all_actions_for_matching[:3]
