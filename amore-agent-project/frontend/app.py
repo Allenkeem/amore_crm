@@ -183,7 +183,7 @@ st.markdown("""
     /* Right Align Container */
     div[data-testid="stButton"] {
         display: flex;
-        justify-content: flex-end;
+        /* justify-content: flex-end; -- Removed to allow full width buttons */
     }
 
     div[data-testid="stButton"] button {
@@ -195,7 +195,7 @@ st.markdown("""
         font-size: 0.85rem !important; /* Readable Size */
         padding: 0.25rem 2rem !important; /* Thinner height, Wider width */
         transition: all 0.2s !important;
-        width: auto !important; /* Auto Width */
+        /* width: auto !important; -- Removed to respect use_container_width/width param */
         white-space: normal !important; /* Allow wrapping if needed */
         height: auto !important; /* Allow growing */
         min-height: 0px !important; /* Override Streamlit default */
@@ -471,13 +471,13 @@ with col_right:
                             with st.expander(f"📋 대상 고객 목록 ({len(customer_ids)}명)", expanded=False):
                                 st.dataframe(
                                     {"Customer ID": customer_ids},
-                                    use_container_width=True,
+                                    width="stretch",
                                     height=150,
                                     hide_index=True
                                 )
 
                         # Button - Outside
-                        if st.button("CRM 메시지 전송", key=f"btn_send_{hash(str(chat_item))}", use_container_width=True):
+                        if st.button("CRM 메시지 전송", key=f"btn_send_{hash(str(chat_item))}", width="stretch"):
                             st.toast(f"{count}명의 고객에게 메시지 발송을 예약했습니다!", icon="🚀")
                 
             st.markdown("<div style='margin-bottom: 3rem;'></div>", unsafe_allow_html=True)
@@ -505,13 +505,13 @@ with col_right:
     s2 = current_suggestions[1] if len(current_suggestions) > 1 else "추천 2"
     s3 = current_suggestions[2] if len(current_suggestions) > 2 else "추천 3"
     
-    if st.button(s1, key="sbtn1", use_container_width=False):
+    if st.button(s1, key="sbtn1", width="content"):
         click_example(s1)
     
-    if st.button(s2, key="sbtn2", use_container_width=False):
+    if st.button(s2, key="sbtn2", width="content"):
         click_example(s2)
         
-    if st.button(s3, key="sbtn3", use_container_width=False):
+    if st.button(s3, key="sbtn3", width="content"):
         click_example(s3)
 
 
