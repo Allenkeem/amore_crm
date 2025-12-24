@@ -16,8 +16,12 @@ def test_intent_parser_structure():
 def test_compliance_check_pass():
     """Verify compliance agent passes safe message."""
     agent = get_compliance_agent()
-    safe_msg = "이 제품은 설화수의 베스트셀러입니다. (광고)"
-    result = agent.check_compliance(safe_msg)
+    safe_msg = "(광고) 아모레퍼시픽\n이 제품은 설화수의 베스트셀러입니다.\n무료수신거부 080-1234-5678"
+    
+    # Mock the LLM call to return a success indicating response
+    from unittest.mock import patch
+    with patch.object(agent, '_run_single_check', return_value="[통과] 안전한 메시지입니다."):
+        result = agent.check_compliance(safe_msg)
     
     assert result["status"] == "PASS"
 

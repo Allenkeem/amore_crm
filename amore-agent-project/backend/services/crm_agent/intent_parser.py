@@ -109,10 +109,11 @@ class IntentParser:
             if purpose_query:
                 matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
                 fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
-                raw_candidates = list(set(matches + fuzzy))[:3]
+                # Preserving order while removing duplicates
+                raw_candidates = list(dict.fromkeys(matches + fuzzy))[:3]
                 
                 # Convert to clean format: Name Only
-                for cand in raw_candidates:
+                for i, cand in enumerate(raw_candidates):
                      # cand is "[ID]: Description..."
                      if "[" in cand and "]" in cand:
                          mid = cand.split("[")[1].split("]")[0]
@@ -120,6 +121,9 @@ class IntentParser:
                          action_obj = next((x for x in self.loader.action_cycles if x["id"] == mid), None)
                          if action_obj:
                              top_k_actions.append(action_obj.get("name", ""))
+                             # Set selected_id to the top candidate if not already set
+                             if not selected_id and i == 0:
+                                 selected_id = mid
                          else:
                              top_k_actions.append(cand)
                      else:
@@ -127,16 +131,9 @@ class IntentParser:
             
         if not top_k_actions:
             # Fallback: Just take the first 3 actions' display names
-            top_k_actions = [a["display"] for a in action_candidates[:3]]
-
-        # Select best action ID
-        selected_id = None
-        if top_k_actions:
-            # top_k_actions contains strings like "[G05_WINTER]: Description..."
-            # We need to extract the ID from the string, e.g., "G05_WINTER"
-            first_match = top_k_actions[0]
-            if "[" in first_match and "]" in first_match:
-                selected_id = first_match.split("[")[1].split("]")[0]
+            # Note: action_candidates is not defined in this scope in original code, 
+            # assuming it meant listing all actions. But let's just make it empty or generic.
+            pass
 
         return {
             "original_query": user_text,
