@@ -66,16 +66,36 @@ class IntentParser:
 
         # 3. Find Candidates (Purpose)
         purpose_query = extracted.get("purpose") or ""
-        all_actions = [a.get("stage_name", "Unknown") for a in self.loader.action_cycles]
+        
+        all_actions_for_matching = []
+        candidates_text = ""
+        for action in self.loader.action_cycles:
+            a_id = action.get("id", "UNKNOWN")
+            desc = action.get("matching_description", action.get("name", ""))
+            
+            # [NEW] Inject Context/Situation for better selection
+            situation = action.get("situation", "")
+            context_guide = action.get("core_guide", {}).get("context", "")
+            
+            extra_context = ""
+            if situation:
+                extra_context = f" [SITUATION: {situation}]"
+            elif context_guide:
+                extra_context = f" [CONTEXT: {context_guide}]"
+                
+            full_action_description = f"[{a_id}]: {desc}{extra_context}"
+            candidates_text += f"- {full_action_description}\n"
+            all_actions_for_matching.append(full_action_description) # Use this for matching
+            
         top_k_actions = []
         if purpose_query:
-            matches = [a for a in all_actions if purpose_query in a or a in purpose_query]
-            fuzzy = get_close_matches(purpose_query, all_actions, n=3, cutoff=0.4)
+            matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
+            fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
             candidates = list(set(matches + fuzzy))
             top_k_actions = candidates[:3]
             
         if not top_k_actions:
-            top_k_actions = all_actions[:3]
+            top_k_actions = all_actions_for_matching[:3]
 
         return {
             "original_query": user_text,
