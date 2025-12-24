@@ -1,7 +1,0 @@
-pandas
-openpyxl
-openai
-python-dotenv
-chromadb
-sentence-transformers
-tqdm

@@ -1,24 +1,46 @@
-# 🛒 CRM 마케팅 AI 에이전트 (CRM AI Agent)
+# Amore Agent Project
 
-고객 리뷰 데이터를 분석하여 **고객 페르소나(성향)**를 파악하고, 그에 딱 맞는 **맞춤형 마케팅 메시지**를 자동으로 작성해주는 AI 프로그램입니다.
+AI-powered CRM Message Builder using FastAPI and Streamlit.
 
-## 📂 프로젝트 구조 (File Structure)
+## 🚀 Quick Start (Docker)
 
-이 프로젝트는 복잡한 과정을 줄이고, **[데이터 준비] -> [AI 실행]** 2단계로 단순화되어 있습니다.
+You can run the entire system (Frontend + Backend) with a single command using Docker.
 
-```text
-crm-ai-agent/
-│
-├── 📂 data/                  # [데이터 창고] 모든 데이터는 여기에 보관합니다.
-│   ├── raw/                  # (1) 원본 엑셀/CSV 파일을 넣는 곳
-│   └── processed/            # (2) AI가 분석 완료한 JSON 파일이 저장되는 곳 (자동생성)
-│
-├── 📂 prompts/               # [AI 대본] AI에게 시킬 역할과 지시사항이 담긴 폴더
-│
-├── 1_data_maker.py           # [실행 1단계] 엑셀을 읽어서 AI용 데이터(JSON)로 변환하는 코드
-├── 2_crm_agent.py            # [실행 2단계] 변환된 데이터를 보고 마케팅 문자를 써주는 코드
-│
-├── .env                      # [비밀번호] OpenAI API 키를 저장하는 파일 (절대 공유 금지!)
-├── .gitignore                # 깃허브에 올리지 않을 파일 목록 설정
-├── requirements.txt          # 필요한 프로그램(라이브러리) 설치 목록
-└── README.md                 # 설명서 (현재 파일)
+### Prerequisites
+- Docker & Docker Compose installed
+
+### How to Run
+1. Open your terminal in this directory.
+2. Run the following command:
+   ```bash
+   docker-compose up --build
+   ```
+   *(Add `-d` to run in background: `docker-compose up --build -d`)*
+
+3. Docker will build the images and start the services.
+   - **Frontend**: [http://localhost:8501](http://localhost:8501)
+   - **Backend**: [http://localhost:8000/docs](http://localhost:8000/docs) (Swagger UI)
+
+### How to Stop
+Press `Ctrl+C` in the terminal (if running in foreground) or run:
+```bash
+docker-compose down
+```
+
+## 🛠 Manual Run (Without Docker)
+
+If you prefer running services individually:
+
+1. **Backend**:
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   python main.py
+   ```
+
+2. **Frontend**:
+   ```bash
+   cd frontend
+   pip install -r requirements.txt
+   streamlit run app.py
+   ```
