@@ -86,7 +86,9 @@ class IntentParser:
              for ac in self.loader.action_cycles:
                  if ac['id'] == selected_id:
                      desc = ac.get("matching_description", ac.get("name", ""))
-                     top_k_actions.append(f"[{selected_id}]: {desc}")
+                     # UPDATE: Use Name for cleaner display, ID handles lookup
+                     display_name = ac.get("name", "")
+                     top_k_actions.append(display_name)
                      break
         
         # Fallback: Search by Purpose if no ID or ID was invalid
@@ -107,8 +109,21 @@ class IntentParser:
             if purpose_query:
                 matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
                 fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
-                candidates = list(set(matches + fuzzy))
-                top_k_actions = candidates[:3]
+                raw_candidates = list(set(matches + fuzzy))[:3]
+                
+                # Convert to clean format: Name Only
+                for cand in raw_candidates:
+                     # cand is "[ID]: Description..."
+                     if "[" in cand and "]" in cand:
+                         mid = cand.split("[")[1].split("]")[0]
+                         # Find name
+                         action_obj = next((x for x in self.loader.action_cycles if x["id"] == mid), None)
+                         if action_obj:
+                             top_k_actions.append(action_obj.get("name", ""))
+                         else:
+                             top_k_actions.append(cand)
+                     else:
+                         top_k_actions.append(cand)
             
         if not top_k_actions:
             # Fallback: Just take the first 3 actions' display names

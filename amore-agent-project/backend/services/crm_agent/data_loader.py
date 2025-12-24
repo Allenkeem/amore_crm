@@ -83,6 +83,18 @@ class DataLoader:
         if not purpose_query:
             return {}
             
+        # 1. Check if it's in [ID] format (e.g., "[G01_WELCOME]: ...")
+        if purpose_query.strip().startswith("[") and "]" in purpose_query:
+            try:
+                # Extract ID: [G01_WELCOME] -> G01_WELCOME
+                potential_id = purpose_query.split("[")[1].split("]")[0].strip()
+                # Lookup by ID directly
+                for action in self.action_cycles:
+                    if action.get("id") == potential_id:
+                        return action
+            except:
+                pass # Fallback to normal search query if parsing fails
+
         # Normalize
         q = purpose_query.lower()
         
