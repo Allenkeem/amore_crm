@@ -111,7 +111,8 @@ class IntentParser:
                 top_k_actions = candidates[:3]
             
         if not top_k_actions:
-            top_k_actions = all_actions_for_matching[:3]
+            # Fallback: Just take the first 3 actions' display names
+            top_k_actions = [a["display"] for a in action_candidates[:3]]
 
         # Select best action ID
         selected_id = None

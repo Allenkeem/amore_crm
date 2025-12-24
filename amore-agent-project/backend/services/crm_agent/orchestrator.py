@@ -23,10 +23,18 @@ class Orchestrator:
         yield {"type": "data", "key": "parsed", "value": parsed}
         
         # 2. Extract Fields (New IntentParser Structure)
-        target_product_name = parsed.get("target_product")
-        target_persona = parsed.get("target_persona")
-        target_purpose = parsed.get("target_purpose")
-        target_action_id = parsed.get("selected_id")
+        # 2. Extract Fields (New IntentParser Structure)
+        # parsed = {"original_query":..., "extracted": {...}, "candidates": {...}}
+        extracted = parsed.get("extracted", {})
+        candidates = parsed.get("candidates", {})
+        
+        target_product_name = extracted.get("product")
+        
+        # Prefer candidate selection for Persona/Purpose as they are validated/matched
+        target_persona = candidates.get("persona", [])[0] if candidates.get("persona") else extracted.get("selected_persona")
+        target_purpose = candidates.get("purpose", [])[0] if candidates.get("purpose") else extracted.get("purpose")
+        
+        target_action_id = parsed.get("selected_id") # This seems unused or legacy
         
         # Fallback defaults if null
         if not target_product_name or target_product_name == "null": target_product_name = None
@@ -69,7 +77,12 @@ class Orchestrator:
             
             # Update candidates with brand info and send
             candidates_data["detected_brand"] = brand_voice_info.get("brand_name", top_product.brand)
-            candidates_data["brand_tone"] = brand_voice_info.get("tone_adjectives", "Default")
+            
+            raw_tone = brand_voice_info.get("tone_adjectives", "Default")
+            if isinstance(raw_tone, list):
+                candidates_data["brand_tone"] = ", ".join(raw_tone)
+            else:
+                candidates_data["brand_tone"] = str(raw_tone)
             yield {"type": "data", "key": "candidates", "value": candidates_data}
             
             # Initial Generation
@@ -144,7 +157,60 @@ class Orchestrator:
             print(f"[Orchestrator] Yielding suggestions: {suggestions}")
             yield {"type": "data", "key": "suggestions", "value": suggestions}
             
-            yield {"type": "data", "key": "suggestions", "value": suggestions}
+            # -----------------------------------------------------------------
+            # TARGET AUDIENCE SUGGESTION (New)
+            # -----------------------------------------------------------------
+            yield {"type": "status", "msg": "메시지를 보낼 최적의 타겟을 찾고 있어요... 🎯"}
+            
+            # 1. Resolve Action ID to find Target Code
+            # target_purpose is the Name (e.g. "신규 고객 제안"). We need to find the ID (e.g. "G01_WELCOME")
+            action_info = get_data_loader().get_action_info(target_purpose)
+            found_action_id = action_info.get("id", "")
+            
+            target_audience_data = None
+            
+            if "_" in found_action_id:
+                # heuristic: G04_WINBACK -> suffix "WINBACK"
+                parts = found_action_id.split("_")
+                if len(parts) >= 2:
+                    suffix = parts[1] # WINBACK
+                    
+                    # 2. Filter Customers
+                    filtered_ids = get_data_loader().filter_customers_by_target(suffix)
+                    
+                    if filtered_ids:
+                        count = len(filtered_ids)
+                        # description matching logic
+                        desc = f"{found_action_id} 관련 고객 세그먼트"
+                        if "WINBACK" in suffix:
+                            desc = "최근 90일 이상 미구매 고객"
+                        elif "WELCOME" in suffix:
+                            desc = "가입 후 첫 구매를 하지 않은 신규 고객"
+                        elif "CART" in suffix:
+                            desc = "장바구니에 상품을 담고 결제하지 않은 고객"
+                        elif "REPURCHASE" in suffix:
+                            desc = "재구매 시기가 도래한 기존 우수 고객"
+                        elif "ROUTINE" in suffix:
+                            desc = "정기적으로 구매하는 루틴 고객"
+                        elif "SPRING" in suffix:
+                            desc = "봄 시즌 상품 선호 고객"
+                        elif "SUMMER" in suffix:
+                            desc = "여름 시즌 상품 선호 고객"
+                        elif "AUTUMN" in suffix:
+                            desc = "가을 시즌 상품 선호 고객"
+                        elif "WINTER" in suffix:
+                            desc = "겨울 시즌 상품 선호 고객"
+                            
+                        target_audience_data = {
+                            "segment_name": found_action_id, 
+                            "count": count,
+                            "description": desc,
+                            "sample_ids": filtered_ids # Return all IDs for scrolling
+                        }
+            
+            if target_audience_data:
+                 yield {"type": "data", "key": "target_audience", "value": target_audience_data}
+
             
         else:
             # 2-B. Fallback: General Conversation Mode

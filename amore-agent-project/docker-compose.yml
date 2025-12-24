@@ -3,21 +3,39 @@ version: '3.8'
 services:
   # 1. 백엔드 서비스
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
     container_name: amore-backend
     ports:
       - "8000:8000"
     restart: always
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - amore-net
 
   # 2. 프론트엔드 서비스
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: amore-frontend
     ports:
       - "8501:8501"
     environment:
-      # ⭐ 핵심: 도커 내부에서는 'localhost'가 아니라 서비스 이름('backend')으로 통신합니다.
       - BACKEND_URL=http://backend:8000/chat
     depends_on:
-      - backend  # 백엔드가 켜져야 프론트엔드도 켜짐
+      backend:
+        condition: service_healthy # 백엔드가 healthcheck 통과 후 실행
     restart: always
+    networks:
+      - amore-net
+
+networks:
+  amore-net:
+    driver: bridge
