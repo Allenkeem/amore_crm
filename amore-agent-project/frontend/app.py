@@ -53,7 +53,7 @@ st.markdown("""
     /* Header Styling */
     .modal-header-title {
         font-size: 1.4rem;
-        font-weight: 700;
+        font-weight: 400;
         color: #031B57; /* Deep Navy */
         display: flex;
         align-items: center;
@@ -372,7 +372,7 @@ with col_right:
     # Let's keep it but maybe smaller if history exists? 
     # For now, keep as is.
     st.markdown("""
-        <div style="text-align:center; color:#2848FC; font-size:2rem; margin-bottom:10px;">✍️</div>
+        <div style="text-align:center; color:#2848FC; font-size:2rem; margin-bottom:10px;">✓</div>
         <div class="main-query-title">어떤 메시지를 작성하고 싶으신가요?</div>
     """, unsafe_allow_html=True)
     
@@ -488,9 +488,9 @@ with col_right:
     # -------------------------------------------------------------------------
     # Dynamic Proposals from Session State (or Defaults)
     current_suggestions = st.session_state.get("latest_suggestions", [
-        "👋 신규 회원가입을 환영하는 메시지를 작성해주세요.",
-        "🎁 신규 고객을 위한 첫 구매 20% 할인 쿠폰 메시지",
-        "💄 라네즈 크림스킨 추천 메시지"
+        "30대 VIP 고객을 위한 설화수 크림 겨울 프로모션 문구 작성해줘",
+        "여름에 사용할 무기자차 선크림을 추천하는 마케팅 메시지를 작성해줘",
+        "라네즈 워터뱅크 크림 추천"
     ])
     
     # Vertical Stack Layout
