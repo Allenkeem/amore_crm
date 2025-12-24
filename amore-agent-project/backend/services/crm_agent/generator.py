@@ -10,7 +10,9 @@ class Generator:
     def generate_response(self, 
                           product_cand: Any, # ProductCandidate object from Model-1
                           persona_name: str,
-                          action_purpose: str,
+                          action_id: str,
+                          action_purpose: str = None, # Kept for backward compatibility
+                          brand_voice: Dict[str, Any] = None, # NEW
                           channel: str = "문자(LMS)",
                           history: list = []) -> str:
         
@@ -25,7 +27,8 @@ class Generator:
             brand_name=brand_name,
             factsheet=factsheet,
             persona_name=persona_name,
-            action_purpose=action_purpose,
+            action_id=action_id,
+            brand_voice=brand_voice,
             channel=channel
         )
 

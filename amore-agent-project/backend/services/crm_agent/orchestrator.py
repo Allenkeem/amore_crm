@@ -22,16 +22,22 @@ class Orchestrator:
         parsed = self.parser.parse_query(user_text)
         yield {"type": "data", "key": "parsed", "value": parsed}
         
-        extracted = parsed["extracted"]
-        product_query = extracted.get("product")
-        target_persona = parsed["candidates"]["persona"][0] if parsed["candidates"]["persona"] else "Unknown"
-        target_purpose = parsed["candidates"]["purpose"][0] if parsed["candidates"]["purpose"] else "Unknown"
+        # 2. Extract Fields (New IntentParser Structure)
+        target_product_name = parsed.get("target_product")
+        target_persona = parsed.get("target_persona")
+        target_purpose = parsed.get("target_purpose")
+        target_action_id = parsed.get("selected_id")
+        
+        # Fallback defaults if null
+        if not target_product_name or target_product_name == "null": target_product_name = None
+        if not target_persona or target_persona == "null": target_persona = "일반 고객"
+        if not target_purpose or target_purpose == "null": target_purpose = "상품 추천"
         
         # 2. Retrieve Products (Model-1)
         yield {"type": "status", "msg": "적합한 상품과 혜택을 찾고 있어요... 📦"}
         
         # Use extracted product query or fallback to full text
-        search_q = product_query if product_query else user_text
+        search_q = target_product_name if target_product_name else user_text
         product_cands = self.retriever.retrieve(search_q)
         
         # Serialize product candidates for UI
@@ -56,22 +62,23 @@ class Orchestrator:
         # 3. Generate Message (Model-2)
         yield {"type": "status", "msg": "매력적인 메시지를 작성하고 있어요... ✍️"}
         
-        brand_tone_info = {}
         if product_cands:
             top_product = product_cands[0]
-            # Fetch Brand Tone
-            brand_tone_info = self.retriever.loader.get_brand_tone(top_product.brand) if hasattr(self.retriever, 'loader') else get_data_loader().get_brand_tone(top_product.brand)
+            # Fetch Brand Tone/Voice for UI and Generation
+            brand_voice_info = get_data_loader().get_brand_voice(top_product.brand)
             
             # Update candidates with brand info and send
-            candidates_data["detected_brand"] = brand_tone_info.get("brand_name", top_product.brand)
-            candidates_data["brand_tone"] = brand_tone_info.get("tone_voice", "Default")
+            candidates_data["detected_brand"] = brand_voice_info.get("brand_name", top_product.brand)
+            candidates_data["brand_tone"] = brand_voice_info.get("tone_adjectives", "Default")
             yield {"type": "data", "key": "candidates", "value": candidates_data}
             
             # Initial Generation
             msg = self.generator.generate_response(
                 product_cand=top_product,
                 persona_name=target_persona,
-                action_purpose=target_purpose,
+                action_id=target_action_id,
+                action_purpose=target_purpose, # Kept existing argument
+                brand_voice=brand_voice_info, # NEW
                 channel="문자(LMS)", # Default
                 history=history # Pass History
             )
@@ -88,7 +95,8 @@ class Orchestrator:
             from services.regulation_agent.compliance import get_compliance_agent
             reg_agent = get_compliance_agent()
             
-            max_retries = 3
+            # max_retries = 3 -> Optimized to 1 as per user request (Zero-Shot Prevention applied)
+            max_retries = 1
             chk_result = None
             
             for attempt in range(max_retries + 1): # 0 to 3
@@ -112,6 +120,7 @@ class Orchestrator:
                     yield {"type": "status", "msg": f"규제 위반 발견! 수정 중입니다... ({attempt+1}/{max_retries}) 🔧"}
                     
                     print(f"[Orchestrator] Attempt {attempt+1} Failed. Refining...")
+                    print(f"[Orchestrator] Violation Reason: {chk_result.get('feedback', 'No details')}")
                     final_msg = self.generator.refine_response(
                         original_msg=final_msg,
                         feedback=chk_result["feedback"],

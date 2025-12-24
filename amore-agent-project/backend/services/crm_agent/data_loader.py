@@ -7,30 +7,24 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 # services/crm_agent/ -> ... -> data/crm_agent/
 BACKEND_ROOT = os.path.abspath(os.path.join(BASE_DIR, "../../"))
 
-BRAND_TONE_PATH = os.path.join(BACKEND_ROOT, "data", "crm_agent", "brand_tone_db.json")
+BRAND_VOICE_PATH = os.path.join(BACKEND_ROOT, "data", "crm_agent", "brand_voice_guidelines.json")
 ACTION_CYCLE_PATH = os.path.join(BACKEND_ROOT, "data", "crm_agent", "action_cycle_db.json")
 PERSONA_CARDS_PATH = os.path.join(BACKEND_ROOT, "data", "crm_agent", "persona_cards.jsonl")
 
 class DataLoader:
     def __init__(self):
-        self.brand_tones = {}
+        self.brand_voices = {} # New Structure
         self.action_cycles = []
         self.personas = {}
         
         self._load_data()
         
     def _load_data(self):
-        # 1. Load Brand Tone
-        try:
-            with open(BRAND_TONE_PATH, "r", encoding="utf-8") as f:
-                self.brand_tones = json.load(f)
-        except Exception as e:
-            print(f"[Model-2] Error loading brand_tone_db: {e}")
-            
         # 2. Load Action Cycle
         try:
             with open(ACTION_CYCLE_PATH, "r", encoding="utf-8") as f:
-                self.action_cycles = json.load(f)
+                data = json.load(f)
+                self.action_cycles = data.get("marketing_scenarios", [])
         except Exception as e:
             print(f"[Model-2] Error loading action_cycle_db: {e}")
             
@@ -45,21 +39,28 @@ class DataLoader:
                         self.personas[p["persona"]] = p
         except Exception as e:
             print(f"[Model-2] Error loading persona_cards.jsonl: {e}")
+        # 4. Load Brand Voices
+        try:
+            with open(BRAND_VOICE_PATH, "r", encoding="utf-8") as f:
+                self.brand_voices = json.load(f)
+        except Exception as e:
+            print(f"[Model-2] Error loading brand_voice_guidelines.json: {e}")
+
+    def get_brand_voice(self, brand_name: str) -> Dict[str, Any]:
+        """Find brand voice guideline by brand name."""
+        if not brand_name:
+            return {}
+
+        # 1. Exact match
+        if brand_name in self.brand_voices:
+            return self.brand_voices[brand_name]
             
-    def get_brand_tone(self, brand_name: str) -> Dict[str, Any]:
-        """Find tone by brand name (fuzzy match)."""
-        # 1. Direct key match
-        if brand_name in self.brand_tones:
-            return self.brand_tones[brand_name]
-            
-        # 2. Search in values (brand_name field)
-        for key, info in self.brand_tones.items():
-            db_name = info.get("brand_name", "")
-            if brand_name.lower() in db_name.lower() or db_name.lower() in brand_name.lower():
-                return info
-                
-        # 3. Return General/Default if exists, else empty
-        return self.brand_tones.get("general", {})
+        # 2. Fuzzy match
+        for b_name, b_data in self.brand_voices.items():
+            if brand_name in b_name or b_name in brand_name:
+                return b_data
+        
+        return {}
 
     def get_action_info(self, purpose_query: str) -> Dict[str, Any]:
         """Find action cycle info by purpose name or stage."""
