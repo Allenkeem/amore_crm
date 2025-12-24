@@ -274,6 +274,17 @@ st.markdown("""
         margin-top: 2rem;
     }
 
+    /* Toast Customization */
+    div[data-testid="stToast"] {
+        width: auto !important;
+        max-width: 50% !important;
+        min-width: 400px !important;
+        padding: 16px !important;
+    }
+    div[data-testid="stToast"] > div {
+        white-space: nowrap !important;
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -413,6 +424,40 @@ with col_right:
                         <div style="font-weight:700; color:#000000; font-size:0.95rem; line-height:1.2;">{detected_brand}</div>
                         <div style="font-size:0.8rem; color:#000000;">{brand_tone}</div>
                     </div>""", unsafe_allow_html=True)
+
+                    # 4. Target Audience (New)
+                    target_audience = data.get("target_audience")
+                    if target_audience:
+                        seg_name = target_audience.get("segment_name", "Target")
+                        count = target_audience.get("count", 0)
+                        desc = target_audience.get("description", "")
+                        
+                        # Card: Title, Description, Count
+                        st.markdown(f"""
+                        <div style="background:#F5F9FF; border:none; border-radius:16px; padding:16px 20px; margin-top:12px; margin-bottom:8px; box-shadow: 0 2px 12px rgba(3, 27, 87, 0.04);">
+                            <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+                                <span style="font-size:1.2rem;">👥</span>
+                                <div style="font-weight:700; color:#2848FC; font-size:1rem;">적합한 고객 세그먼트</div>
+                            </div>
+                            <div style="font-weight:600; color:#2D3748; margin-bottom:4px;">{desc}</div>
+                            <div style="font-size:0.9rem; color:#4A5568;">총 <span style="color:#2B6CB0; font-weight:700;">{count}명</span>의 고객이 있습니다.</div>
+                        </div>
+                        """, unsafe_allow_html=True)
+                        
+                        # Customer List (Expander) - Outside
+                        customer_ids = target_audience.get("sample_ids", [])
+                        if customer_ids:
+                            with st.expander(f"📋 대상 고객 목록 ({len(customer_ids)}명)", expanded=False):
+                                st.dataframe(
+                                    {"Customer ID": customer_ids},
+                                    use_container_width=True,
+                                    height=150,
+                                    hide_index=True
+                                )
+
+                        # Button - Outside
+                        if st.button("CRM 메시지 전송", key=f"btn_send_{hash(str(chat_item))}", use_container_width=True):
+                            st.toast(f"{count}명의 고객에게 메시지 발송을 예약했습니다!", icon="🚀")
                 
             st.markdown("<div style='margin-bottom: 3rem;'></div>", unsafe_allow_html=True)
 
@@ -571,6 +616,9 @@ with col_right:
                                                 
                                             elif key == "suggestions":
                                                 collected_data["suggestions"] = val
+                                            
+                                            elif key == "target_audience":
+                                                collected_data["target_audience"] = val
                                         
                                         elif evt_type == "error":
                                             st.error(f"Server Error: {event.get('msg')}")

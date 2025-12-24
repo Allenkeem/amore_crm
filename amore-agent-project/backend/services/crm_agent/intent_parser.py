@@ -67,11 +67,13 @@ class IntentParser:
         # 3. Find Candidates (Purpose)
         purpose_query = extracted.get("purpose") or ""
         
-        all_actions_for_matching = []
-        candidates_text = ""
+        # Store tuples of (full_desc, clean_name)
+        action_candidates = []
+        
         for action in self.loader.action_cycles:
             a_id = action.get("id", "UNKNOWN")
-            desc = action.get("matching_description", action.get("name", ""))
+            name = action.get("name", "") # Clean name for display, e.g. "신규 고객 제안"
+            desc = action.get("matching_description", name)
             
             # [NEW] Inject Context/Situation for better selection
             situation = action.get("situation", "")
@@ -84,18 +86,40 @@ class IntentParser:
                 extra_context = f" [CONTEXT: {context_guide}]"
                 
             full_action_description = f"[{a_id}]: {desc}{extra_context}"
-            candidates_text += f"- {full_action_description}\n"
-            all_actions_for_matching.append(full_action_description) # Use this for matching
+            
+            # Use full description for matching, but keep clean name for display
+            action_candidates.append({
+                "full": full_action_description,
+                "display": name if name else a_id # Use Name if available, else ID
+            })
             
         top_k_actions = []
         if purpose_query:
-            matches = [a for a in all_actions_for_matching if purpose_query.lower() in a.lower() or a.lower() in purpose_query.lower()]
-            fuzzy = get_close_matches(purpose_query, all_actions_for_matching, n=3, cutoff=0.4)
-            candidates = list(set(matches + fuzzy))
-            top_k_actions = candidates[:3]
+            # Filter based on full description
+            matches = [a for a in action_candidates if purpose_query.lower() in a["full"].lower()]
+            
+            # Extract just the full strings for fuzzy matching
+            full_strings = [a["full"] for a in action_candidates]
+            fuzzy_strs = get_close_matches(purpose_query, full_strings, n=3, cutoff=0.4)
+            
+            # Re-map fuzzy strings back to objects
+            fuzzy_matches = [a for a in action_candidates if a["full"] in fuzzy_strs]
+            
+            # Combine
+            combined = matches + fuzzy_matches
+            # Deduplicate by display name to avoid duplicates
+            seen = set()
+            unique_candidates = []
+            for c in combined:
+                if c["display"] not in seen:
+                    unique_candidates.append(c["display"])
+                    seen.add(c["display"])
+            
+            top_k_actions = unique_candidates[:3]
             
         if not top_k_actions:
-            top_k_actions = all_actions_for_matching[:3]
+            # Fallback: Just take the first 3 actions' display names
+            top_k_actions = [a["display"] for a in action_candidates[:3]]
 
         # Select best action ID
         selected_id = None
