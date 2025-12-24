@@ -97,13 +97,27 @@ class IntentParser:
         if not top_k_actions:
             top_k_actions = all_actions_for_matching[:3]
 
+        # Select best action ID
+        selected_id = None
+        if top_k_actions:
+            # top_k_actions contains strings like "[G05_WINTER]: Description..."
+            # We need to extract the ID from the string, e.g., "G05_WINTER"
+            first_match = top_k_actions[0]
+            if "[" in first_match and "]" in first_match:
+                selected_id = first_match.split("[")[1].split("]")[0]
+
         return {
             "original_query": user_text,
-            "extracted": extracted,
+            "extracted": extracted, # Keep for debugging
             "candidates": {
                 "persona": top_k_personas,
                 "purpose": top_k_actions
-            }
+            },
+            # Map to Orchestrator expected keys
+            "target_product": extracted.get("product"),
+            "target_persona": extracted.get("selected_persona"), # or use selected_persona variable
+            "target_purpose": extracted.get("purpose"),
+            "selected_id": selected_id
         }
 
 # Singleton
