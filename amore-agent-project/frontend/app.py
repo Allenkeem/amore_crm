@@ -2,6 +2,7 @@ import os
 import streamlit as st
 import requests
 import json
+import base64
 
 # Configuration
 BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/chat")
@@ -10,7 +11,7 @@ BACKEND_URL = os.getenv("BACKEND_URL", "http://localhost:8000/chat")
 # Page Config & Custom CSS
 # -------------------------------------------------------------------------
 st.set_page_config(
-    page_title="AI Message Builder", 
+    page_title="CRM 메시지 자동 제작 에이전트", 
     page_icon="✨",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -179,15 +180,26 @@ st.markdown("""
     }
 
     /* Target generic buttons (Example buttons) to look like Chips */
+    /* Right Align Container */
+    div[data-testid="stButton"] {
+        display: flex;
+        justify-content: flex-end;
+    }
+
     div[data-testid="stButton"] button {
         background-color: #FFFFFF !important;
         border: 1px solid transparent !important; /* Force override */
         border-radius: 20px !important;
         box-shadow: 0 2px 8px rgba(3, 27, 87, 0.05) !important;
         color: #526388 !important; /* Muted Blue-Gray Text */
-        font-size: 0.9rem !important;
-        padding: 0.4rem 1rem !important;
+        font-size: 0.85rem !important; /* Readable Size */
+        padding: 0.25rem 2rem !important; /* Thinner height, Wider width */
         transition: all 0.2s !important;
+        width: auto !important; /* Auto Width */
+        white-space: normal !important; /* Allow wrapping if needed */
+        height: auto !important; /* Allow growing */
+        min-height: 0px !important; /* Override Streamlit default */
+        line-height: 1.2 !important; /* tighter text */
     }
     div[data-testid="stButton"] button:hover {
         background-color: #F0F5FF !important; /* Light Hover */
@@ -295,16 +307,25 @@ st.markdown("""
 
 # Header Row
 # Full width header
-st.markdown("""
-    <div class="modal-header-title">
-        <span style="color:#2848FC;">✨</span> AI 메시지 빌더
-    </div>
-    <div class="modal-header-desc">
-        채널별로 원하는 스타일의 메시지를 쉽고 빠르게 생성해드려요.
-    </div>
-""", unsafe_allow_html=True)
+def get_image_base64(path):
+    with open(path, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
 
-st.markdown("---")
+img_base64 = get_image_base64("data/amoremall_og_img.png")
+
+st.markdown(f"""
+    <div style="background-color:#2e3982; padding:2rem 2rem 1.5rem 2rem; border-radius:16px 16px 0 0; margin-top:-2rem; margin-left:-2rem; margin-right:-2rem; margin-bottom:0; text-align:center;">
+        <img src="data:image/png;base64,{img_base64}" style="max-width:100%; height:auto; margin-bottom: 1rem;">
+        <div class="modal-header-title" style="color:#FFFFFF; justify-content:center;">
+            <span style="color:#FFF;">✨</span> CRM 메시지 자동 제작 에이전트
+        </div>
+        <div class="modal-header-desc" style="color:#E0E7FF; margin-top:4px; margin-bottom:0;">
+            고객 페르소나를 바탕으로 각 개인에게 맞는 아모레몰 상품을 추천하는 마케팅 메시지를 만들어드려요
+        </div>
+    </div>
+    <hr style="margin-top: 0; margin-bottom: 1rem; border: 0; border-top: 1px solid #E1E8F5;">
+""", unsafe_allow_html=True)
 
 # Body Columns
 col_left, col_right = st.columns([3, 7], gap="large")
@@ -472,26 +493,25 @@ with col_right:
         "💄 라네즈 크림스킨 추천 메시지"
     ])
     
-    # Horizontal Layout (3 columns)
-    rc1, rc2, rc3 = st.columns(3)
+    # Vertical Stack Layout
+    # Use full width for each button to accommodate long text
     
     # Helper for button click
     def click_example(ex_text):
         st.session_state.input_text = ex_text
         st.rerun()
 
-    # Determine Label (Short) vs Text (Full)
-    # For initial defaults, Label == Text. For dynamic suggestions, Label is the suggestion itself.
-    
     s1 = current_suggestions[0] if len(current_suggestions) > 0 else "추천 1"
     s2 = current_suggestions[1] if len(current_suggestions) > 1 else "추천 2"
     s3 = current_suggestions[2] if len(current_suggestions) > 2 else "추천 3"
-
-    if rc1.button(s1, use_container_width=True):
+    
+    if st.button(s1, key="sbtn1", use_container_width=False):
         click_example(s1)
-    if rc2.button(s2, use_container_width=True):
+    
+    if st.button(s2, key="sbtn2", use_container_width=False):
         click_example(s2)
-    if rc3.button(s3, use_container_width=True):
+        
+    if st.button(s3, key="sbtn3", use_container_width=False):
         click_example(s3)
 
 
